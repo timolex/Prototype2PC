@@ -7,9 +7,11 @@ import java.nio.charset.StandardCharsets;
 
 public class Subordinate {
 
+    public static Socket coordinatorSocket;
+
     public static void main(String[] args) throws IOException {
         // Trying to connect with coordinator. TODO: Repeat this several times, until a connection has been established.
-        Socket coordinatorSocket = new Socket("localhost", 8080);
+        coordinatorSocket = new Socket("localhost", 8080);
 
         OutputStreamWriter writer = new OutputStreamWriter(coordinatorSocket.getOutputStream(), StandardCharsets.UTF_8);
         BufferedReader reader = new BufferedReader(new InputStreamReader(coordinatorSocket.getInputStream(), StandardCharsets.UTF_8));
