@@ -9,6 +9,7 @@ import java.util.ArrayList;
 
 public class Coordinator {
 
+    // TODO: Eventually we could accept program arguments here to set the max. no of subordinates.
     private static final int MAX_SUBORDINATES = 2;
     private static int subordinateCounter = 0;
 
@@ -20,11 +21,9 @@ public class Coordinator {
         Coordinator coordinator = new Coordinator();
 
         try {
-            // TODO: Change this to while (subordinateCounter < MAX_SUBORDINATES-1)
-            while (subordinateCounter < MAX_SUBORDINATES-1) {
+            while (subordinateCounter < MAX_SUBORDINATES) {
             Socket socket = serverSocket.accept();
             addSubordinateSocket(socket);
-            serverSocket.close();
             }
             coordinator.doStuff();
         } finally {
@@ -41,17 +40,19 @@ public class Coordinator {
     }
 
     private void doStuff() throws IOException {
-        OutputStreamWriter writer = new OutputStreamWriter(sockets.get(0).getOutputStream(), StandardCharsets.UTF_8);
-        BufferedReader reader = new BufferedReader(new InputStreamReader(sockets.get(0).getInputStream(), StandardCharsets.UTF_8));
-
-        System.out.println(reader.readLine());
-
-        writer.write("Hello, this is your coordinator speaking!");
-        writer.flush();
-
-        // Do this after every possible end of the 2PC protocol
         for (Socket socket : sockets){
+
+            OutputStreamWriter writer = new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8);
+            BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
+
+            System.out.println(reader.readLine());
+
+            writer.write("Hello, this is your coordinator speaking! You are subordinate at port number " + socket.getPort() + ".");
+            writer.flush();
+
             socket.close();
+
         }
+
     }
 }
