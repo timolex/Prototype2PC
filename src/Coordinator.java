@@ -13,33 +13,43 @@ public class Coordinator {
     private static final int MAX_SUBORDINATES = 2;
     private static int subordinateCounter = 0;
 
-    private static ArrayList<Socket> sockets = new ArrayList<>(MAX_SUBORDINATES);
+
+    private ArrayList<Socket> sockets = new ArrayList<>(MAX_SUBORDINATES);
+
+    public Coordinator(ArrayList<Socket> sockets) {
+        this.sockets = sockets;
+    }
+
+    public ArrayList<Socket> getSockets() {
+        return sockets;
+    }
+
 
     public static void main (String[] args) throws IOException {
 
         ServerSocket serverSocket = new ServerSocket(8080);
-        Coordinator coordinator = new Coordinator();
+
+
+        ArrayList<Socket> sockets = new ArrayList<>(MAX_SUBORDINATES);
 
         try {
             while (subordinateCounter < MAX_SUBORDINATES) {
             Socket socket = serverSocket.accept();
-            addSubordinateSocket(socket);
+            sockets.add(socket);
+            subordinateCounter++;
+            System.out.println("added Socket of subordinate w/ port " + socket.getPort() + ".");
+
             }
-            coordinator.doStuff();
+            Coordinator coordinator = new Coordinator(sockets);
+            coordinator.initiate();
         } finally {
             serverSocket.close();
         }
 
     }
 
-    private static void addSubordinateSocket(Socket socket) {
-        sockets.add(socket);
-        subordinateCounter++;
-        System.out.println("added Socket of subordinate w/ port " + socket.getPort() + ".");
 
-    }
-
-    private void doStuff() throws IOException {
+    public static void broadcast(ArrayList<Socket> sockets, String msg) throws IOException {
         for (Socket socket : sockets){
 
             OutputStreamWriter writer = new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8);
@@ -47,11 +57,27 @@ public class Coordinator {
 
             System.out.println(reader.readLine());
 
-            writer.write("Hello, this is your coordinator speaking! You are subordinate at port number " + socket.getPort() + ".");
+            writer.write(msg + "\n");
             writer.flush();
 
-            socket.close();
+        }
+    }
 
+    private void initiate() throws IOException {
+
+        broadcast(this.getSockets(), "Hello, this is your coordinator speaking!");
+
+        //this.phaseOne();
+
+    }
+
+    //TODO: Find out, why this isn't working properly...
+    private void phaseOne() throws IOException {
+
+        broadcast(this.getSockets(), "PREPARE");
+
+        for (Socket socket : this.getSockets()) {
+            socket.close();
         }
 
     }
