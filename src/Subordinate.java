@@ -7,71 +7,59 @@ import java.nio.charset.StandardCharsets;
 
 public class Subordinate {
 
-    //public static Socket coordinatorSocket;
     private Socket coordinatorSocket;
+    private BufferedReader reader;
+    private OutputStreamWriter writer;
 
-    public Subordinate(Socket socket) {
+    private Subordinate(Socket socket) throws IOException {
         this.coordinatorSocket = socket;
+        this.reader = new BufferedReader(new InputStreamReader(coordinatorSocket.getInputStream(), StandardCharsets.UTF_8));
+        this.writer = new OutputStreamWriter(coordinatorSocket.getOutputStream(), StandardCharsets.UTF_8);
     }
 
-    public Socket getCoordinatorSocket() {
+    private Socket getCoordinatorSocket() {
         return coordinatorSocket;
     }
 
-    public void setCoordinatorSocket(Socket coordinatorSocket) {
-        this.coordinatorSocket = coordinatorSocket;
+    private String receive() throws IOException {
+
+        return this.reader.readLine();
+
     }
 
+    private void send(String msg) throws IOException {
 
+        this.writer.write(msg + "\n");
+        this.writer.flush();
 
-    public static void main(String[] args) throws IOException, InterruptedException {
+    }
+
+    private void initiate() throws IOException {
+
+        this.send("Hello, this is a subordinate!");
+        System.out.println(receive());
+        System.out.println("My coordinator is at: " + this.getCoordinatorSocket().getPort());
+        this.phaseOne();
+
+    }
+
+    private void phaseOne() throws IOException {
+
+        System.out.println(this.receive());
+        this.send("YES");
+        this.getCoordinatorSocket().close();
+
+    }
+
+    public static void main(String[] args) throws IOException {
 
         // Trying to connect with coordinator. TODO: Repeat this several times, until a connection has been established.
         Socket coordinatorSocket = new Socket("localhost", 8080);
 
-        //OutputStreamWriter writer = new OutputStreamWriter(coordinatorSocket.getOutputStream(), StandardCharsets.UTF_8);
-
-        //writer.write("Hello, this is a subordinate!\n");
-        //writer.flush();
-
-        //send(coordinatorSocket, "Hello, this is a subordinate!\n");
-
-        //System.out.println(receive(coordinatorSocket));
-        //System.out.println("My coordinator is at: " + coordinatorSocket.getPort());
-
-
         Subordinate subordinate = new Subordinate(coordinatorSocket);
         subordinate.initiate();
 
-
-
         coordinatorSocket.close();
-    }
-
-    public static String receive(Socket coordinatorSocket) throws IOException, InterruptedException {
-        BufferedReader reader = new BufferedReader(new InputStreamReader(coordinatorSocket.getInputStream(), StandardCharsets.UTF_8));
-        String line = reader.readLine();
-        return line;
-    }
-
-    public static void send(Socket coordinatorSocket, String msg) throws IOException {
-        OutputStreamWriter writer = new OutputStreamWriter(coordinatorSocket.getOutputStream(), StandardCharsets.UTF_8);
-        writer.write(msg + "\n");
-        writer.flush();
-    }
-
-    private void initiate() throws IOException, InterruptedException {
-        send(this.getCoordinatorSocket(), "Hello, this is a subordinate!\n");
-        System.out.println(receive(this.getCoordinatorSocket()));
-        System.out.println("My coordinator is at: " + this.getCoordinatorSocket().getPort());
-        //this.phaseOne();
-
-    }
-
-    private void phaseOne() throws IOException, InterruptedException {
-
-        System.out.println(receive(this.getCoordinatorSocket()));
-        this.getCoordinatorSocket().close();
 
     }
 }
