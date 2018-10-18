@@ -57,10 +57,22 @@ public class Coordinator {
 
     private void phaseOne() throws IOException {
 
+        boolean decision = true;
+        boolean phaseOneFailure = false;
+
         broadcast("PREPARE");
         for(String msg : this.receive()){
             System.out.println(msg);
+            if(msg.equals("NO")) decision = false;
+            if(msg.equals("")) {
+                decision = false;
+                phaseOneFailure = true;
+            }
         }
+
+        if(decision) System.out.println("Decision: COMMIT (all subordinates answered w/ YES VOTES)");
+        if(phaseOneFailure) System.out.println("Decision: ABORT (one or more subordinates did not vote)");
+        if(!decision && !phaseOneFailure) System.out.println("Decision: ABORT (all subordinates answered w/ NO VOTES)");
 
         for (Socket socket : this.sockets) {
             socket.close();
