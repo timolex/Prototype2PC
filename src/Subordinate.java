@@ -40,7 +40,7 @@ public class Subordinate {
 
     private void initiate() throws IOException {
 
-        System.out.println("\nMy coordinator (C) is at: " + this.getCoordinatorSocket().getPort() + "\n" +
+        System.out.println("\nMy coordinator (C) is @ port " + this.getCoordinatorSocket().getPort() + "\n" +
                 "Vote to be sent: " + this.vote +"\n");
         this.phaseOne();
 

@@ -10,7 +10,7 @@ import java.util.ArrayList;
 public class Coordinator {
 
     // TODO: Eventually we could accept program arguments in main to set the max. no of subordinates here.
-    private static final int MAX_SUBORDINATES = 2;
+    private static int MAX_SUBORDINATES;
     private static int subordinateCounter = 0;
 
     private ArrayList<Socket> sockets;
@@ -100,25 +100,36 @@ public class Coordinator {
 
     }
 
+    private static void printHelp(){
+        System.out.println("USAGE\n=====\n arguments:\n  - Coordinator -S [NO_OF_SUBORDINATES]");
+    }
+
     public static void main (String[] args) throws IOException {
 
-        ServerSocket serverSocket = new ServerSocket(8080);
-        ArrayList<Socket> sockets = new ArrayList<>(MAX_SUBORDINATES);
+        if(args.length == 0) {
+            printHelp();
+        } else if(args[0].equals("-S")){
+            if(args[1] != null && Integer.parseInt(args[1]) > 0) {
+                MAX_SUBORDINATES = Integer.parseInt(args[1]);
+                ServerSocket serverSocket = new ServerSocket(8080);
+                ArrayList<Socket> sockets = new ArrayList<>(MAX_SUBORDINATES);
 
-        try {
-            System.out.println("\nCoordinator-Socket established, waiting for " + MAX_SUBORDINATES + " subordinates to connect...\n");
-            while (subordinateCounter < MAX_SUBORDINATES) {
-                Socket socket = serverSocket.accept();
-                sockets.add(socket);
-                subordinateCounter++;
-                System.out.println("Added Socket for subordinate " + "S" + subordinateCounter + " @ port " + socket.getPort() + ".");
+                try {
+                    System.out.println("\nCoordinator-Socket established, waiting for " + MAX_SUBORDINATES + " subordinates to connect...\n");
+                    while (subordinateCounter < MAX_SUBORDINATES) {
+                        Socket socket = serverSocket.accept();
+                        sockets.add(socket);
+                        subordinateCounter++;
+                        System.out.println("Added Socket for subordinate " + "S" + subordinateCounter + " @ port " + socket.getPort() + ".");
+                    }
+                    System.out.println("\n");
+                    Coordinator coordinator = new Coordinator(sockets);
+                    coordinator.initiate();
+                } finally {
+                    serverSocket.close();
+                }
             }
-            System.out.println("\n");
-            Coordinator coordinator = new Coordinator(sockets);
-            coordinator.initiate();
-        } finally {
-            serverSocket.close();
-        }
+        } else printHelp();
 
     }
 }
