@@ -34,6 +34,7 @@ public class Subordinate {
     private void send(String msg) throws IOException {
 
         this.writer.write(msg + "\n");
+        System.out.println("Message sent to coordinator: " + "\"" + msg + "\"");
         this.writer.flush();
 
     }
@@ -51,14 +52,54 @@ public class Subordinate {
 
         System.out.println("=============== START OF PHASE 1 ===============");
 
-        this.receive();
-        this.send(this.vote);
-        System.out.println("Message sent to coordinator: " + "\"" + this.vote + "\"");
-        System.out.println("=============== END OF PHASE 1 =================\n");
+        String prepareMsg = this.receive();
+
+        switch (prepareMsg) {
+            case "PREPARE":
+                this.send(this.vote);
+                System.out.println("=============== END OF PHASE 1 =================\n");
+
+                this.phaseTwo();
+
+                break;
+            case "":
+                //TODO: Handle phase 1 failure (Coordinator down -> abort unilaterally)
+                this.coordinatorSocket.close();
+
+                break;
+            default:
+                this.coordinatorSocket.close();
+                throw new IOException("Illegal prepare message received from coordinator: " + prepareMsg);
+        }
+
+    }
+
+    private void phaseTwo() throws IOException {
+
+        System.out.println("\n=============== START OF PHASE 2 ===============");
+
+        String decisionMsg = this.receive();
+
+        switch (decisionMsg) {
+            case "COMMIT":
+                this.send("ACK");
+                System.out.println("=============== END OF PHASE 2 =================\n");
+
+                break;
+            case "ABORT":
+
+                this.send("ACK");
+                System.out.println("=============== END OF PHASE 2 =================\n");
+
+                break;
+            default:
+
+                throw new IOException("Illegal decision message received from coordinator: " + decisionMsg);
+
+        }
 
         //TODO: Always move this to the last step of the protocol.
-        this.getCoordinatorSocket().close();
-
+        this.coordinatorSocket.close();
     }
 
     private static void printHelp(){

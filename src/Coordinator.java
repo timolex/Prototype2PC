@@ -6,18 +6,15 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.List;
 
 public class Coordinator {
 
-    // TODO: Eventually we could accept program arguments in main to set the max. no of subordinates here.
-    private static int MAX_SUBORDINATES;
-    private static int subordinateCounter = 0;
+    private List<Socket> sockets;
+    private List<OutputStreamWriter> writers = new ArrayList<>();
+    private List<BufferedReader> readers = new ArrayList<>();
 
-    private ArrayList<Socket> sockets;
-    private ArrayList<OutputStreamWriter> writers = new ArrayList<>();
-    private ArrayList<BufferedReader> readers = new ArrayList<>();
-
-    private Coordinator(ArrayList<Socket> sockets) throws IOException {
+    private Coordinator(List<Socket> sockets) throws IOException {
 
         this.sockets = sockets;
 
@@ -36,9 +33,9 @@ public class Coordinator {
         System.out.println("Message broadcast to subordinates: " + "\"" + msg + "\"\n");
     }
 
-    private ArrayList<String> receive() throws IOException {
+    private List<String> receive() throws IOException {
         int i=1;
-        ArrayList<String> msgs = new ArrayList<>();
+        List<String> msgs = new ArrayList<>();
 
         for(BufferedReader reader : readers) {
 
@@ -73,10 +70,11 @@ public class Coordinator {
 
         boolean decision = true;
         boolean phaseOneFailure = false;
+        boolean illegalAnswer = false;
 
-        broadcast("PREPARE");
+        this.broadcast("PREPARE");
 
-        ArrayList<String> votes;
+        List<String> votes;
         votes = this.receive();
 
         for(String msg : votes){
@@ -84,20 +82,48 @@ public class Coordinator {
             if(msg.equals("")) {
                 decision = false;
                 phaseOneFailure = true;
+            } else if (!msg.equals("YES") && !msg.equals("NO") && !msg.equals("")){
+                illegalAnswer = true;
             }
         }
 
-        if(decision) System.out.println("Phase 1 decision: COMMIT (all subordinates answered w/ YES VOTES)");
-        if(phaseOneFailure) System.out.println("Phase 1 decision: ABORT (one or more subordinates did not vote)");
-        if(!decision && !phaseOneFailure) System.out.println("Phase 1 decision: ABORT (one or more subordinates answered w/ NO VOTES)");
+        if(!illegalAnswer) {
+            if(phaseOneFailure) System.out.println("Phase 1 decision: ABORT (one or more subordinates did not vote)");
+            if(decision) System.out.println("Phase 1 decision: COMMIT (all subordinates answered w/ 'YES' VOTES)");
+            if(!decision && !phaseOneFailure) System.out.println("Phase 1 decision: ABORT (one or more subordinates answered w/ 'NO' VOTES)");
 
-        System.out.println("=============== END OF PHASE 1 =================\n");
+            System.out.println("=============== END OF PHASE 1 =================\n");
+
+            this.phaseTwo(decision);
+        } else {
+            for (Socket socket : this.sockets) {
+                socket.close();
+            }
+            throw new IOException("Illegal vote received from a subordinate");
+        }
+
+    }
+
+    private void phaseTwo(boolean decision) throws IOException {
+
+        System.out.println("\n=============== START OF PHASE 2 ===============");
+
+        if(decision){
+           this.broadcast("COMMIT");
+        } else {
+            this.broadcast("ABORT");
+        }
+
+        //TODO: Check acknowledgements
+        this.receive();
+        //List<String> acknowledgements = this.receive();
+
+        System.out.println("=============== END OF PHASE 2 =================\n");
 
         //TODO: Always move this to the last step of the protocol.
         for (Socket socket : this.sockets) {
             socket.close();
         }
-
     }
 
     private static void printHelp(){
@@ -110,13 +136,16 @@ public class Coordinator {
             printHelp();
         } else if(args[0].equals("-S")){
             if(args[1] != null && Integer.parseInt(args[1]) > 0) {
-                MAX_SUBORDINATES = Integer.parseInt(args[1]);
+
+                int subordinateCounter = 0;
+                int maxSubordinates = Integer.parseInt(args[1]);
+
                 ServerSocket serverSocket = new ServerSocket(8080);
-                ArrayList<Socket> sockets = new ArrayList<>(MAX_SUBORDINATES);
+                List<Socket> sockets = new ArrayList<>(maxSubordinates);
 
                 try {
-                    System.out.println("\nCoordinator-Socket established, waiting for " + MAX_SUBORDINATES + " subordinates to connect...\n");
-                    while (subordinateCounter < MAX_SUBORDINATES) {
+                    System.out.println("\nCoordinator-Socket established, waiting for " + maxSubordinates + " subordinates to connect...\n");
+                    while (subordinateCounter < maxSubordinates) {
                         Socket socket = serverSocket.accept();
                         sockets.add(socket);
                         subordinateCounter++;
@@ -128,6 +157,7 @@ public class Coordinator {
                 } finally {
                     serverSocket.close();
                 }
+
             }
         } else printHelp();
 
