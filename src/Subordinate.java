@@ -4,17 +4,17 @@ import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.util.Scanner;
 
 public class Subordinate {
 
     private Socket coordinatorSocket;
     private BufferedReader reader;
     private OutputStreamWriter writer;
-    private String vote;
+    private Scanner scanner;
 
-    private Subordinate(Socket socket, String vote) throws IOException {
+    private Subordinate(Socket socket) throws IOException {
         this.coordinatorSocket = socket;
-        this.vote = vote;
         this.reader = new BufferedReader(new InputStreamReader(coordinatorSocket.getInputStream(), StandardCharsets.UTF_8));
         this.writer = new OutputStreamWriter(coordinatorSocket.getOutputStream(), StandardCharsets.UTF_8);
     }
@@ -41,8 +41,7 @@ public class Subordinate {
 
     private void initiate() throws IOException {
 
-        System.out.println("\nMy coordinator (C) is @ port " + this.getCoordinatorSocket().getPort() + "\n" +
-                "Vote to be sent: " + this.vote +"\n");
+        System.out.println("\nMy coordinator (C) is @ port " + this.getCoordinatorSocket().getPort() + "\n\n");
         this.phaseOne();
 
     }
@@ -56,10 +55,19 @@ public class Subordinate {
 
         switch (prepareMsg) {
             case "PREPARE":
-                this.send(this.vote);
-                System.out.println("=============== END OF PHASE 1 =================\n");
-
-                this.phaseTwo();
+                this.scanner = new Scanner(System.in);
+                System.out.println("Please enter the vote ('YES'/'NO') to be sent back to the coordinator.");
+                System.out.println("If you wish to let this subordinate fail at this stage, please enter 'fail':");
+                String input = scanner.next().toUpperCase();
+                if(input.equals("YES") || input.equals("NO")){
+                    this.send(input);
+                    System.out.println("=============== END OF PHASE 1 =================\n");
+                    this.phaseTwo();
+                } else if (input.equals("FAIL")){
+                    this.send("");
+                    System.out.println("=============== END OF PHASE 1 =================\n");
+                    this.phaseTwo();
+                }
 
                 break;
             case "":
@@ -82,13 +90,25 @@ public class Subordinate {
 
         switch (decisionMsg) {
             case "COMMIT":
-                this.send("ACK");
+                System.out.println("Please decide ('y'/'n'), if this subordinate should acknowledge the coordinator's decision, or not:");
+                String input = this.scanner.next();
+                if(input.equals("y")) {
+                    this.send("ACK");
+                } else {
+                    this.send("");
+                }
                 System.out.println("=============== END OF PHASE 2 =================\n");
 
                 break;
             case "ABORT":
 
-                this.send("ACK");
+                System.out.println("Please decide ('y'/'n'), if this subordinate should acknowledge the coordinator's decision, or not:");
+                String input2 = this.scanner.next();
+                if(input2.equals("y")) {
+                    this.send("ACK");
+                } else {
+                    this.send("");
+                }
                 System.out.println("=============== END OF PHASE 2 =================\n");
 
                 break;
@@ -102,34 +122,15 @@ public class Subordinate {
         this.coordinatorSocket.close();
     }
 
-    private static void printHelp(){
-        System.out.println("USAGE\n=====\n arguments:\n  - Subordinate -y (vote YES in phase one)\n  - Subordinate -n (vote NO in phase one)" +
-                "\n  - Subordinate -f (do NOT vote in phase one)");
-    }
-
     public static void main(String[] args) throws IOException {
 
         // Trying to connect with coordinator. TODO: Repeat this several times, until a connection has been established.
         Socket coordinatorSocket;
 
-        if(args.length == 0){
-            printHelp();
-        } else if(args[0].equals("-y")) {
-            coordinatorSocket = new Socket("localhost", 8080);
-            Subordinate subordinate = new Subordinate(coordinatorSocket, "YES");
-            subordinate.initiate();
-            coordinatorSocket.close();
-        } else if(args[0].equals("-n")){
-            coordinatorSocket = new Socket("localhost", 8080);
-            Subordinate subordinate = new Subordinate(coordinatorSocket, "NO");
-            subordinate.initiate();
-            coordinatorSocket.close();
-        } else if(args[0].equals("-f")){
-            coordinatorSocket = new Socket("localhost", 8080);
-            Subordinate subordinate = new Subordinate(coordinatorSocket, "");
-            subordinate.initiate();
-            coordinatorSocket.close();
-        } else printHelp();
+        coordinatorSocket = new Socket("localhost", 8080);
+        Subordinate subordinate = new Subordinate(coordinatorSocket);
+        subordinate.initiate();
+        coordinatorSocket.close();
 
     }
 }
