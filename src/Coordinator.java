@@ -92,6 +92,13 @@ public class Coordinator {
             if(decision) System.out.println("Phase 1 decision: COMMIT (all subordinates answered w/ 'YES' VOTES)");
             if(!decision && !phaseOneFailure) System.out.println("Phase 1 decision: ABORT (one or more subordinates answered w/ 'NO' VOTES)");
 
+            Logger logger = new Logger("/tmp/CoordinatorLog.txt");
+            if(decision) {
+                logger.log("COMMIT");
+            } else {
+                logger.log("ABORT");
+            }
+
             System.out.println("=============== END OF PHASE 1 =================\n");
 
             this.phaseTwo(decision);
