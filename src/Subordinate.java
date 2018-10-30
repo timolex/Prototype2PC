@@ -88,11 +88,8 @@ public class Subordinate {
                 break;
             case "":
                 //TODO: Handle phase 1 failure (Coordinator down -> abort unilaterally)
-                this.coordinatorSocket.close();
-
                 break;
             default:
-                this.coordinatorSocket.close();
                 throw new IOException("Illegal prepare message received from coordinator: " + prepareMsg);
         }
 
