@@ -34,7 +34,24 @@ public class Subordinate {
     private void send(String msg) throws IOException {
 
         this.writer.write(msg + "\n");
-        System.out.println("Message sent to coordinator: " + "\"" + msg + "\"");
+        switch (msg) {
+            case ("Y"): {
+                System.out.println("Message sent to coordinator: \"YES\"");
+                break;
+            }
+            case ("N"): {
+                System.out.println("Message sent to coordinator: \"NO\"");
+                break;
+            }
+            case ("") : {
+                System.out.println("Message sent to coordinator: \"\"");
+                break;
+            }
+            default: {
+                System.out.println("Message sent to coordinator: \"" + msg + "\"");
+                break;
+            }
+        }
         this.writer.flush();
 
     }
@@ -46,7 +63,6 @@ public class Subordinate {
 
     }
 
-
     private void phaseOne() throws IOException {
 
         System.out.println("=============== START OF PHASE 1 ===============");
@@ -56,14 +72,14 @@ public class Subordinate {
         switch (prepareMsg) {
             case "PREPARE":
                 this.scanner = new Scanner(System.in);
-                System.out.println("Please enter the vote ('YES'/'NO') to be sent back to the coordinator.");
-                System.out.println("If you wish to let this subordinate fail at this stage, please enter 'fail':");
+                System.out.println("Please enter the vote ('y' for 'YES'/ 'n' for 'NO') to be sent back to the coordinator.");
+                System.out.println("If you wish to let this subordinate fail at this stage, please enter 'f':");
                 String input = scanner.next().toUpperCase();
-                if(input.equals("YES") || input.equals("NO")){
+                if(input.equals("Y") || input.equals("N")){
                     this.send(input);
                     System.out.println("=============== END OF PHASE 1 =================\n");
                     this.phaseTwo();
-                } else if (input.equals("FAIL")){
+                } else if (input.equals("F")){
                     this.send("");
                     System.out.println("=============== END OF PHASE 1 =================\n");
                     this.phaseTwo();
@@ -118,19 +134,19 @@ public class Subordinate {
 
         }
 
-        //TODO: Always move this to the last step of the protocol.
-        this.coordinatorSocket.close();
     }
 
     public static void main(String[] args) throws IOException {
 
         // Trying to connect with coordinator. TODO: Repeat this several times, until a connection has been established.
-        Socket coordinatorSocket;
+        Socket coordinatorSocket = new Socket("localhost", 8080);
 
-        coordinatorSocket = new Socket("localhost", 8080);
-        Subordinate subordinate = new Subordinate(coordinatorSocket);
-        subordinate.initiate();
-        coordinatorSocket.close();
+        try {
+            Subordinate subordinate = new Subordinate(coordinatorSocket);
+            subordinate.initiate();
 
+        } finally {
+            coordinatorSocket.close();
+        }
     }
 }

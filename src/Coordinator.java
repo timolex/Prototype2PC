@@ -78,11 +78,11 @@ public class Coordinator {
         votes = this.receive();
 
         for(String msg : votes){
-            if(msg.equals("NO")) decision = false;
+            if(msg.equals("N")) decision = false;
             if(msg.equals("")) {
                 decision = false;
                 phaseOneFailure = true;
-            } else if (!msg.equals("YES") && !msg.equals("NO") && !msg.equals("")){
+            } else if (!msg.equals("Y") && !msg.equals("N") && !msg.equals("")){
                 illegalAnswer = true;
             }
         }
@@ -127,10 +127,6 @@ public class Coordinator {
 
         System.out.println("=============== END OF PHASE 2 =================\n");
 
-        //TODO: Always move this to the last step of the protocol.
-        for (Socket socket : this.sockets) {
-            socket.close();
-        }
     }
 
     private static void printHelp(){
@@ -163,6 +159,9 @@ public class Coordinator {
                     coordinator.initiate();
                 } finally {
                     serverSocket.close();
+                    for (Socket socket : sockets) {
+                        socket.close();
+                    }
                 }
 
             }
