@@ -41,7 +41,24 @@ public class Coordinator {
 
             String msg = reader.readLine();
             msgs.add(msg);
-            System.out.println("S" + i + ": " + "\"" + msg + "\"");
+            switch (msg) {
+                case ("Y"): {
+                    System.out.println("S" + i + ": " + "\"YES\"");
+                    break;
+                }
+                case ("N"): {
+                    System.out.println("S" + i + ": " + "\"NO\"");
+                    break;
+                }
+                case ("") : {
+                    System.out.println("S" + i + ": " + "\"\"");
+                    break;
+                }
+                default: {
+                    System.out.println("S" + i + ": " + "\"" + msg + "\"");
+                    break;
+                }
+            }
             i++;
 
         }
