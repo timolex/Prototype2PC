@@ -125,6 +125,9 @@ public class Subordinate {
                 System.out.println("=============== END OF PHASE 2 =================\n");
 
                 break;
+            case "": {
+                //TODO: invoke Subordinate's recovery process, which reads C's log to find out about final outcome
+            }
             default:
 
                 throw new IOException("Illegal decision message received from coordinator: " + decisionMsg);
