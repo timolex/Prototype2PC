@@ -7,12 +7,15 @@ import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Scanner;
 
 public class Coordinator {
 
     private List<Socket> sockets;
     private List<OutputStreamWriter> writers = new ArrayList<>();
     private List<BufferedReader> readers = new ArrayList<>();
+    private Scanner scanner;
+
 
     private Coordinator(List<Socket> sockets) throws IOException {
 
@@ -25,12 +28,15 @@ public class Coordinator {
 
     }
 
-    private void broadcast(String msg) throws IOException {
+    private void broadcast(String msg, boolean verbosely) throws IOException {
         for (OutputStreamWriter writer : this.writers){
             writer.write(msg + "\n");
             writer.flush();
         }
-        System.out.println("Message broadcast to subordinates: " + "\"" + msg + "\"\n");
+
+        if(verbosely){
+            System.out.println("Message broadcast to subordinates: " + "\"" + msg + "\"\n");
+        }
     }
 
     private List<String> receive() throws IOException {
@@ -51,7 +57,7 @@ public class Coordinator {
                     break;
                 }
                 case ("") : {
-                    System.out.println("S" + i + ": " + "\"\"");
+                    System.out.println("S" + i + ": " + "[No message received]");
                     break;
                 }
                 default: {
@@ -86,46 +92,69 @@ public class Coordinator {
         System.out.println("=============== START OF PHASE 1 ===============");
 
         boolean decision = true;
-        boolean phaseOneFailure = false;
+        boolean phaseOneSubordinateFailure = false;
+        boolean phaseOneCoordinatorFailure = false;
         boolean illegalAnswer = false;
+        this.scanner = new Scanner(System.in);
 
-        this.broadcast("PREPARE");
+        System.out.println("If you wish to let this subordinate fail at this stage, please enter 'f': ");
 
-        List<String> votes;
-        votes = this.receive();
+        if(scanner.nextLine().toUpperCase().equals("F")) phaseOneCoordinatorFailure = true;
 
-        for(String msg : votes){
-            if(msg.equals("N")) decision = false;
-            if(msg.equals("")) {
-                decision = false;
-                phaseOneFailure = true;
-            } else if (!msg.equals("Y") && !msg.equals("N") && !msg.equals("")){
-                illegalAnswer = true;
-            }
-        }
+        if(phaseOneCoordinatorFailure) {
 
-        if(!illegalAnswer) {
-            if(phaseOneFailure) System.out.println("Phase 1 decision: ABORT (one or more subordinates did not vote)");
-            if(decision) System.out.println("Phase 1 decision: COMMIT (all subordinates answered w/ 'YES' VOTES)");
-            if(!decision && !phaseOneFailure) System.out.println("Phase 1 decision: ABORT (one or more subordinates answered w/ 'NO' VOTES)");
+            this.broadcast("PREPARE", true);
+            this.broadcast("COORDINATOR_FAILURE", false);
+            System.out.println("=============== COORDINATOR CRASHES =================\n");
 
-            Logger logger = new Logger("/tmp/CoordinatorLog.txt");
-            if(decision) {
-                logger.log("COMMIT");
-            } else {
-                logger.log("ABORT");
-            }
-
-            System.out.println("=============== END OF PHASE 1 =================\n");
-
-            this.phaseTwo(decision);
         } else {
-            for (Socket socket : this.sockets) {
-                socket.close();
-            }
-            throw new IOException("Illegal vote received from a subordinate");
-        }
 
+            this.broadcast("PREPARE", true);
+            this.broadcast("", false);
+
+            List<String> votes;
+            votes = this.receive();
+            int i = 0;
+
+            for(String msg : votes){
+                if(msg.equals("N")) decision = false;
+                if(msg.equals("")) {
+                    // Here, any not responding Subordinates are removed. Please note, that the Subordinate's indices
+                    // might change accordingly (e.g., if S2 fails, S3 'inherits' index 2 in the receive method.
+                    this.readers.remove(i);
+                    this.writers.remove(i);
+                    this.sockets.get(i).close();
+                    this.sockets.remove(i);
+                    decision = false;
+                    phaseOneSubordinateFailure = true;
+                } else if (!msg.equals("Y") && !msg.equals("N") && !msg.equals("")){
+                    illegalAnswer = true;
+                }
+                i ++;
+            }
+
+            if(!illegalAnswer) {
+                if(phaseOneSubordinateFailure) System.out.println("Phase 1 decision: ABORT (one or more subordinates did not vote)");
+                if(decision) System.out.println("Phase 1 decision: COMMIT (all subordinates answered w/ 'YES' VOTES)");
+                if(!decision && !phaseOneSubordinateFailure) System.out.println("Phase 1 decision: ABORT (one or more subordinates answered w/ 'NO' VOTES)");
+
+                Logger logger = new Logger("/tmp/CoordinatorLog.txt");
+                if(decision) {
+                    logger.log("COMMIT");
+                } else {
+                    logger.log("ABORT");
+                }
+
+                System.out.println("=============== END OF PHASE 1 =================\n");
+
+                this.phaseTwo(decision);
+            } else {
+                for (Socket socket : this.sockets) {
+                    socket.close();
+                }
+                throw new IOException("Illegal vote received from a subordinate");
+            }
+        }
     }
 
     private void phaseTwo(boolean decision) throws IOException {
@@ -133,9 +162,9 @@ public class Coordinator {
         System.out.println("\n=============== START OF PHASE 2 ===============");
 
         if(decision){
-           this.broadcast("COMMIT");
+           this.broadcast("COMMIT", true);
         } else {
-            this.broadcast("ABORT");
+            this.broadcast("ABORT", true);
         }
 
         //TODO: Check acknowledgements

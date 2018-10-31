@@ -23,12 +23,15 @@ public class Subordinate {
         return coordinatorSocket;
     }
 
-    private String receive() throws IOException {
+    private String receive(boolean verbosely) throws IOException {
 
         String msg = this.reader.readLine();
-        System.out.println("C: \"" + msg + "\"\n");
-        return msg;
 
+        if (verbosely){
+            System.out.println("C: \"" + msg + "\"\n");
+        }
+
+        return msg;
     }
 
     private void send(String msg) throws IOException {
@@ -44,7 +47,7 @@ public class Subordinate {
                 break;
             }
             case ("") : {
-                System.out.println("Message sent to coordinator: \"\"");
+                System.out.println("No message sent to coordinator");
                 break;
             }
             default: {
@@ -67,39 +70,41 @@ public class Subordinate {
 
         System.out.println("=============== START OF PHASE 1 ===============");
 
-        String prepareMsg = this.receive();
+        String prepareMsg = this.receive(true);
+        String phaseOneCoordinatorFailure = this.receive(false);
 
-        switch (prepareMsg) {
-            case "PREPARE":
-                this.scanner = new Scanner(System.in);
-                System.out.println("Please enter the vote ('y' for 'YES'/ 'n' for 'NO') to be sent back to the coordinator.");
-                System.out.println("If you wish to let this subordinate fail at this stage, please enter 'f':");
-                String input = scanner.next().toUpperCase();
-                if(input.equals("Y") || input.equals("N")){
-                    this.send(input);
-                    System.out.println("=============== END OF PHASE 1 =================\n");
-                    this.phaseTwo();
-                } else if (input.equals("F")){
-                    this.send("");
-                    System.out.println("=============== END OF PHASE 1 =================\n");
-                    this.phaseTwo();
-                }
+        if (prepareMsg.equals("PREPARE") && phaseOneCoordinatorFailure.equals("")){
+            this.scanner = new Scanner(System.in);
+            System.out.println("Please enter the vote ('y' for 'YES'/ 'n' for 'NO') to be sent back to the coordinator.");
+            System.out.println("If you wish to let this subordinate fail at this stage, please enter 'f':");
+            String input = scanner.next().toUpperCase();
+            if(input.equals("Y") || input.equals("N")){
+                this.send(input);
+                System.out.println("=============== END OF PHASE 1 =================\n");
+                this.phaseTwo();
+            } else if (input.equals("F")){
+                this.send("");
+                System.out.println("=============== SUBORDINATE FAILURE =================\n");
+                //this.phaseTwo();
+            }
 
-                break;
-            case "":
-                //TODO: Handle phase 1 failure (Coordinator down -> abort unilaterally)
-                break;
-            default:
-                throw new IOException("Illegal prepare message received from coordinator: " + prepareMsg);
+        } else if (prepareMsg.equals("PREPARE") && phaseOneCoordinatorFailure.equals("COORDINATOR_FAILURE")) {
+
+            System.out.println("Coordinator crash detected!\n");
+            System.out.println("=============== UNILATERAL ABORT =================\n");
+
+        } else {
+
+            throw new IOException("Illegal prepare message received from coordinator: " + prepareMsg);
+
         }
-
     }
 
     private void phaseTwo() throws IOException {
 
         System.out.println("\n=============== START OF PHASE 2 ===============");
 
-        String decisionMsg = this.receive();
+        String decisionMsg = this.receive(true);
 
         switch (decisionMsg) {
             case "COMMIT":
