@@ -85,7 +85,6 @@ public class Subordinate {
             } else if (input.equals("F")){
                 this.send("");
                 System.out.println("=============== SUBORDINATE FAILURE =================\n");
-                //this.phaseTwo();
             }
 
         } else if (prepareMsg.equals("PREPARE") && phaseOneCoordinatorFailure.equals("COORDINATOR_FAILURE")) {
@@ -106,37 +105,20 @@ public class Subordinate {
 
         String decisionMsg = this.receive(true);
 
-        switch (decisionMsg) {
-            case "COMMIT":
-                System.out.println("Please decide ('y'/'n'), if this subordinate should acknowledge the coordinator's decision, or not:");
-                String input = this.scanner.next();
-                if(input.equals("y")) {
-                    this.send("ACK");
-                } else {
-                    this.send("");
-                }
+        if (decisionMsg.equals("COMMIT") || decisionMsg.equals("ABORT")) {
+            System.out.println("Please decide ('y'/'n'), if this subordinate should acknowledge the coordinator's decision, or not:");
+            String input = this.scanner.next();
+            if(input.toUpperCase().equals("Y")) {
+                this.send("ACK");
                 System.out.println("=============== END OF PHASE 2 =================\n");
-
-                break;
-            case "ABORT":
-
-                System.out.println("Please decide ('y'/'n'), if this subordinate should acknowledge the coordinator's decision, or not:");
-                String input2 = this.scanner.next();
-                if(input2.equals("y")) {
-                    this.send("ACK");
-                } else {
-                    this.send("");
-                }
-                System.out.println("=============== END OF PHASE 2 =================\n");
-
-                break;
-            case "": {
-                //TODO: invoke Subordinate's recovery process, which reads C's log to find out about final outcome
+            } else {
+                this.send("");
+                System.out.println("=============== SUBORDINATE CRASHES =================\n");
             }
-            default:
+        } else if (decisionMsg.equals("")) {
 
-                throw new IOException("Illegal decision message received from coordinator: " + decisionMsg);
-
+        } else {
+            throw new IOException("Illegal decision message received from coordinator: " + decisionMsg);
         }
 
     }

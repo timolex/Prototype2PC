@@ -15,6 +15,7 @@ public class Coordinator {
     private List<OutputStreamWriter> writers = new ArrayList<>();
     private List<BufferedReader> readers = new ArrayList<>();
     private Scanner scanner;
+    private Logger logger;
 
 
     private Coordinator(List<Socket> sockets) throws IOException {
@@ -138,7 +139,7 @@ public class Coordinator {
                 if(decision) System.out.println("Phase 1 decision: COMMIT (all subordinates answered w/ 'YES' VOTES)");
                 if(!decision && !phaseOneSubordinateFailure) System.out.println("Phase 1 decision: ABORT (one or more subordinates answered w/ 'NO' VOTES)");
 
-                Logger logger = new Logger("/tmp/CoordinatorLog.txt");
+                this.logger = new Logger("/tmp/CoordinatorLog.txt");
                 if(decision) {
                     logger.log("COMMIT");
                 } else {
@@ -168,10 +169,26 @@ public class Coordinator {
         }
 
         //TODO: Check acknowledgements
-        this.receive();
-        //List<String> acknowledgements = this.receive();
+        List<String> acknowledgements = this.receive();
+        boolean subordinateFailure = false;
+        boolean invalidAcknowledgement = false;
 
-        System.out.println("=============== END OF PHASE 2 =================\n");
+        for(String ack : acknowledgements) {
+            if (ack.equals("")) {
+                subordinateFailure = true;
+            } else if (!ack.equals("ACK")) {
+                invalidAcknowledgement = true;
+            }
+        }
+
+        if(subordinateFailure) {
+            System.out.println("Subordinate crash(es) detected!\nHanding transaction over to recovery process...");
+            // this.recoveryProcess();
+        } else if (invalidAcknowledgement) {
+            throw new IOException("Illegal acknowledgement received from a subordinate");
+        } else {
+            System.out.println("=============== END OF PHASE 2 =================\n");
+        }
 
     }
 
