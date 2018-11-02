@@ -105,22 +105,33 @@ public class Subordinate {
 
         String decisionMsg = this.receive(true);
 
-        if (decisionMsg.equals("COMMIT") || decisionMsg.equals("ABORT")) {
-            System.out.println("Please decide ('y'/'n'), if this subordinate should acknowledge the coordinator's decision, or not:");
-            String input = this.scanner.next();
-            if(input.toUpperCase().equals("Y")) {
-                this.send("ACK");
-                System.out.println("=============== END OF PHASE 2 =================\n");
-            } else {
-                this.send("");
-                System.out.println("=============== SUBORDINATE CRASHES =================\n");
-            }
-        } else if (decisionMsg.equals("")) {
+        switch (decisionMsg) {
+            case "COMMIT":
+            case "ABORT":
+                System.out.println("Please decide ('y'/'n'), if this subordinate should acknowledge the coordinator's decision, or not:");
+                String input = this.scanner.next();
+                if (input.toUpperCase().equals("Y")) {
+                    this.send("ACK");
+                    System.out.println("=============== END OF PHASE 2 =================\n");
+                } else {
+                    this.send("");
+                    System.out.println("=============== SUBORDINATE CRASHES =================\n");
+                    this.resurrect();
+                }
+                break;
+            case "":
 
-        } else {
-            throw new IOException("Illegal decision message received from coordinator: " + decisionMsg);
+                break;
+            default:
+                throw new IOException("Illegal decision message received from coordinator: " + decisionMsg);
         }
 
+    }
+
+    private void resurrect() throws IOException {
+        System.out.println("=============== SUBORDINATE RESURRECTS =================\n");
+        this.receive(true);
+        System.out.println("=============== END OF PHASE 2 =================\n");
     }
 
     public static void main(String[] args) throws IOException {

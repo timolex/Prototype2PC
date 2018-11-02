@@ -40,6 +40,16 @@ public class Coordinator {
         }
     }
 
+    private void send(int index, String msg, boolean verbosely) throws IOException {
+        OutputStreamWriter writer = this.writers.get(index);
+        writer.write(msg + "\n");
+        writer.flush();
+
+        if(verbosely) {
+            System.out.println("Message sent to S" + (index+1) + ": " + "\"" + msg + "\"");
+        }
+    }
+
     private List<String> receive() throws IOException {
         int i=1;
         List<String> msgs = new ArrayList<>();
@@ -139,11 +149,11 @@ public class Coordinator {
                 if(decision) System.out.println("Phase 1 decision: COMMIT (all subordinates answered w/ 'YES' VOTES)");
                 if(!decision && !phaseOneSubordinateFailure) System.out.println("Phase 1 decision: ABORT (one or more subordinates answered w/ 'NO' VOTES)");
 
-                this.logger = new Logger("/tmp/CoordinatorLog.txt");
+                this.logger = new Logger("/tmp/CoordinatorLog.txt", "Coordinator");
                 if(decision) {
-                    logger.log("COMMIT");
+                    logger.log("COMMIT", true);
                 } else {
-                    logger.log("ABORT");
+                    logger.log("ABORT", true);
                 }
 
                 System.out.println("=============== END OF PHASE 1 =================\n");
@@ -168,28 +178,57 @@ public class Coordinator {
             this.broadcast("ABORT", true);
         }
 
-        //TODO: Check acknowledgements
+        //TODO: Check acknowledgments several times, if still some subordinates do not answer with ACKs
+        this.checkAcknowledgements();
+    }
+
+    private void checkAcknowledgements() throws IOException {
         List<String> acknowledgements = this.receive();
         boolean subordinateFailure = false;
         boolean invalidAcknowledgement = false;
+        int count = 0;
+        List<Integer> crashedSubordinateIndices = new ArrayList<>();
 
         for(String ack : acknowledgements) {
             if (ack.equals("")) {
                 subordinateFailure = true;
+                crashedSubordinateIndices.add(count);
             } else if (!ack.equals("ACK")) {
                 invalidAcknowledgement = true;
             }
+            count++;
         }
 
-        if(subordinateFailure) {
-            System.out.println("Subordinate crash(es) detected!\nHanding transaction over to recovery process...");
-            // this.recoveryProcess();
+        if(subordinateFailure && !invalidAcknowledgement) {
+            System.out.println("Subordinate crash(es) detected!\nHanding transaction over to recovery process...\n");
+            this.recoveryProcess(crashedSubordinateIndices);
         } else if (invalidAcknowledgement) {
             throw new IOException("Illegal acknowledgement received from a subordinate");
         } else {
+            logger.log("END", false);
             System.out.println("=============== END OF PHASE 2 =================\n");
         }
+    }
 
+    private void recoveryProcess(List<Integer> crashedSubordinateIndices) throws IOException {
+        String decision = logger.readLog().split(" ")[0];
+
+        for(Integer index : crashedSubordinateIndices) {
+            switch (decision) {
+                case "COMMIT":
+                case "ABORT":
+                    this.send(index, decision, true);
+                    break;
+                case "":
+                    this.send(index, "ABORT", true);
+                    break;
+                default:
+                    throw new IOException("Illegal log entry: " + decision);
+            }
+        }
+
+        logger.log("END", false);
+        System.out.println("=============== END OF PHASE 2 =================\n");
     }
 
     private static void printHelp(){
