@@ -211,6 +211,8 @@ public class Coordinator {
     }
 
     private void recoveryProcess(List<Integer> crashedSubordinateIndices) throws IOException {
+        System.out.println("\n=============== START OF RECOVERY PROCESS ===============");
+
         String decision = logger.readLog().split(" ")[0];
 
         for(Integer index : crashedSubordinateIndices) {
@@ -228,6 +230,7 @@ public class Coordinator {
         }
 
         logger.log("END", false);
+        System.out.println("=============== END RECOVERY PROCESS =================\n");
         System.out.println("=============== END OF PHASE 2 =================\n");
     }
 
