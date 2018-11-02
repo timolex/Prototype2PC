@@ -112,7 +112,7 @@ public class Subordinate {
         switch (decisionMsg) {
             case "COMMIT":
             case "ABORT":
-                System.out.println("Please decide ('y'/'n'), if this subordinate should acknowledge the coordinator's decision, or not:");
+                System.out.println("Please decide ('y'/'n'), whether this subordinate should acknowledge the coordinator's decision, or not:");
                 String input = this.scanner.next();
                 if (input.toUpperCase().equals("Y")) {
                     this.send("ACK");
