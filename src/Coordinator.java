@@ -16,6 +16,8 @@ public class Coordinator {
     private List<BufferedReader> readers = new ArrayList<>();
     private Scanner scanner;
     private Logger logger;
+    private String loggedDecision;
+    private static int recoveryProcessCounter = 0;
 
 
     private Coordinator(List<Socket> sockets) throws IOException {
@@ -27,6 +29,7 @@ public class Coordinator {
             this.readers.add(new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8)));
         }
 
+        loggedDecision = "";
     }
 
     private void broadcast(String msg, boolean verbosely) throws IOException {
@@ -36,7 +39,7 @@ public class Coordinator {
         }
 
         if(verbosely){
-            System.out.println("Message broadcast to subordinates: " + "\"" + msg + "\"\n");
+            System.out.println("Message broadcast to subordinates: " + "\"" + msg + "\"");
         }
     }
 
@@ -51,10 +54,11 @@ public class Coordinator {
     }
 
     private List<String> receive() throws IOException {
+
         int i=1;
         List<String> msgs = new ArrayList<>();
 
-        for(BufferedReader reader : readers) {
+        for(BufferedReader reader : this.readers) {
 
             String msg = reader.readLine();
             msgs.add(msg);
@@ -83,6 +87,22 @@ public class Coordinator {
         System.out.println();
 
         return msgs;
+
+    }
+
+    private String receiveSingle(int index) throws IOException {
+
+        String msg = this.readers.get(index).readLine();
+        switch (msg) {
+            case "":
+                System.out.println("S" + (index+1) + ": " + "[No message received]");
+                break;
+            default:
+                System.out.println("S" + (index+1) + ": " + "\"" + msg + "\"");
+                break;
+        }
+
+        return msg;
     }
 
     private void initiate() throws IOException {
@@ -178,12 +198,19 @@ public class Coordinator {
             this.broadcast("ABORT", true);
         }
 
-        //TODO: Check acknowledgments several times, if still some subordinates do not answer with ACKs
-        this.checkAcknowledgements();
+        List<Integer> allSubordinates = new ArrayList<>();
+        for(int i = 0; i < this.sockets.size(); i++) allSubordinates.add(i);
+
+        this.checkAcknowledgements(allSubordinates);
     }
 
-    private void checkAcknowledgements() throws IOException {
-        List<String> acknowledgements = this.receive();
+    private void checkAcknowledgements(List<Integer> subordinatesToBeChecked) throws IOException {
+        List<String> acknowledgements = new ArrayList<>();
+
+        for(int subordinateIndex : subordinatesToBeChecked) {
+            acknowledgements.add(this.receiveSingle(subordinateIndex));
+        }
+
         boolean subordinateFailure = false;
         boolean invalidAcknowledgement = false;
         int count = 0;
@@ -192,15 +219,16 @@ public class Coordinator {
         for(String ack : acknowledgements) {
             if (ack.equals("")) {
                 subordinateFailure = true;
-                crashedSubordinateIndices.add(count);
-            } else if (!ack.equals("ACK")) {
+                crashedSubordinateIndices.add(subordinatesToBeChecked.get(count));
+            } else if (!ack.equals("ACK") && !ack.equals("")) {
                 invalidAcknowledgement = true;
             }
             count++;
         }
 
         if(subordinateFailure && !invalidAcknowledgement) {
-            System.out.println("Subordinate crash(es) detected!\nHanding transaction over to recovery process...\n");
+            System.out.println("\nSubordinate crash(es) detected!");
+            if(recoveryProcessCounter < 1) System.out.println("Handing transaction over to recovery process...\n");
             this.recoveryProcess(crashedSubordinateIndices);
         } else if (invalidAcknowledgement) {
             throw new IOException("Illegal acknowledgement received from a subordinate");
@@ -211,27 +239,28 @@ public class Coordinator {
     }
 
     private void recoveryProcess(List<Integer> crashedSubordinateIndices) throws IOException {
-        System.out.println("\n=============== START OF RECOVERY PROCESS ===============");
+        ++recoveryProcessCounter;
+        if (recoveryProcessCounter == 1) System.out.println("\n=============== START OF RECOVERY PROCESS ===============");
 
-        String decision = logger.readLog().split(" ")[0];
+        if (loggedDecision.isEmpty()) this.loggedDecision = logger.readLog().split(" ")[0];
 
         for(Integer index : crashedSubordinateIndices) {
-            switch (decision) {
+            switch (loggedDecision) {
                 case "COMMIT":
                 case "ABORT":
-                    this.send(index, decision, true);
+                    this.send(index, loggedDecision, true);
                     break;
                 case "":
                     this.send(index, "ABORT", true);
                     break;
                 default:
-                    throw new IOException("Illegal log entry: " + decision);
+                    throw new IOException("Illegal log entry: " + loggedDecision);
             }
         }
 
-        logger.log("END", false);
-        System.out.println("=============== END RECOVERY PROCESS =================\n");
-        System.out.println("=============== END OF PHASE 2 =================\n");
+        this.checkAcknowledgements(crashedSubordinateIndices);
+        if (recoveryProcessCounter == 1) System.out.println("=============== END OF RECOVERY PROCESS =================\n");
+        --recoveryProcessCounter;
     }
 
     private static void printHelp(){

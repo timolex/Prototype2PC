@@ -102,6 +102,10 @@ public class Subordinate {
     private void phaseTwo() throws IOException {
 
         System.out.println("\n=============== START OF PHASE 2 ===============");
+        this.handleAcknowledgement();
+    }
+
+    private void handleAcknowledgement() throws IOException {
 
         String decisionMsg = this.receive(true);
 
@@ -130,8 +134,8 @@ public class Subordinate {
 
     private void resurrect() throws IOException {
         System.out.println("=============== SUBORDINATE RESURRECTS =================\n");
-        this.receive(true);
-        System.out.println("=============== END OF PHASE 2 =================\n");
+
+        this.handleAcknowledgement();
     }
 
     public static void main(String[] args) throws IOException {
