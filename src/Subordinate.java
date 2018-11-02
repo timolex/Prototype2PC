@@ -124,7 +124,7 @@ public class Subordinate {
                 }
                 break;
             case "":
-
+                //TODO: Handle the phase two coordinator-failure case here
                 break;
             default:
                 throw new IOException("Illegal decision message received from coordinator: " + decisionMsg);
