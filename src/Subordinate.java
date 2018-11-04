@@ -47,7 +47,7 @@ public class Subordinate {
                 break;
             }
             case ("") : {
-                System.out.println("No message sent to coordinator");
+                System.out.println("[No message sent to coordinator]");
                 break;
             }
             default: {
@@ -112,7 +112,7 @@ public class Subordinate {
         switch (decisionMsg) {
             case "COMMIT":
             case "ABORT":
-                System.out.println("Please decide ('y'/'n'), whether this subordinate should acknowledge the coordinator's decision, or not:");
+                System.out.println("Please decide ('y'/'f'), whether this subordinate should acknowledge the coordinator's decision, or fail now:");
                 String input = this.scanner.next();
                 if (input.toUpperCase().equals("Y")) {
                     this.send("ACK");

@@ -17,7 +17,7 @@ public class Coordinator {
     private Scanner scanner;
     private Logger logger;
     private String loggedDecision;
-    private static int recoveryProcessCounter = 0;
+    private boolean recoveryProcessStarted;
 
 
     private Coordinator(List<Socket> sockets) throws IOException {
@@ -29,7 +29,9 @@ public class Coordinator {
             this.readers.add(new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8)));
         }
 
-        loggedDecision = "";
+        this.loggedDecision = "";
+        this.recoveryProcessStarted = false;
+
     }
 
     private void broadcast(String msg, boolean verbosely) throws IOException {
@@ -227,20 +229,21 @@ public class Coordinator {
         }
 
         if(subordinateFailure && !invalidAcknowledgement) {
-            System.out.println("\nSubordinate crash(es) detected!");
-            if(recoveryProcessCounter < 1) System.out.println("Handing transaction over to recovery process...\n");
+            System.out.println("\nSubordinate crash(es) detected!\n");
+            if(!this.recoveryProcessStarted) System.out.println("Handing transaction over to recovery process...\n");
             this.recoveryProcess(crashedSubordinateIndices);
         } else if (invalidAcknowledgement) {
             throw new IOException("Illegal acknowledgement received from a subordinate");
         } else {
             logger.log("END", false);
+            if(this.recoveryProcessStarted) System.out.println("=============== END OF RECOVERY PROCESS =================\n");
             System.out.println("=============== END OF PHASE 2 =================\n");
         }
     }
 
     private void recoveryProcess(List<Integer> crashedSubordinateIndices) throws IOException {
-        ++recoveryProcessCounter;
-        if (recoveryProcessCounter == 1) System.out.println("\n=============== START OF RECOVERY PROCESS ===============");
+        if (!this.recoveryProcessStarted) System.out.println("\n=============== START OF RECOVERY PROCESS ===============");
+        this.recoveryProcessStarted = true;
 
         if (loggedDecision.isEmpty()) this.loggedDecision = logger.readLog().split(" ")[0];
 
@@ -257,10 +260,7 @@ public class Coordinator {
                     throw new IOException("Illegal log entry: " + loggedDecision);
             }
         }
-
         this.checkAcknowledgements(crashedSubordinateIndices);
-        if (recoveryProcessCounter == 1) System.out.println("=============== END OF RECOVERY PROCESS =================\n");
-        --recoveryProcessCounter;
     }
 
     private static void printHelp(){

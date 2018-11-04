@@ -6,7 +6,7 @@ public class Logger {
 
     private BufferedReader br;
     private BufferedWriter bw;
-    private SimpleDateFormat dateFormat = new SimpleDateFormat("dd-MM-yyyy HH:mm:ss");
+    private SimpleDateFormat dateFormat = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss");
     private String nodeType;
 
 
