@@ -130,7 +130,7 @@ public class Coordinator {
         boolean illegalAnswer = false;
         this.scanner = new Scanner(System.in);
 
-        System.out.println("If you wish to let this subordinate fail at this stage, please enter 'f': ");
+        System.out.println("If you wish to let the coordinator fail at this stage, please enter 'f': ");
 
         if(scanner.nextLine().toUpperCase().equals("F")) phaseOneCoordinatorFailure = true;
 
