@@ -12,11 +12,13 @@ public class Subordinate {
     private BufferedReader reader;
     private OutputStreamWriter writer;
     private Scanner scanner;
+    private boolean phaseTwoStarted;
 
     private Subordinate(Socket socket) throws IOException {
         this.coordinatorSocket = socket;
         this.reader = new BufferedReader(new InputStreamReader(coordinatorSocket.getInputStream(), StandardCharsets.UTF_8));
         this.writer = new OutputStreamWriter(coordinatorSocket.getOutputStream(), StandardCharsets.UTF_8);
+        this.phaseTwoStarted = false;
     }
 
     private Socket getCoordinatorSocket() {
@@ -101,11 +103,9 @@ public class Subordinate {
 
     private void phaseTwo() throws IOException {
 
-        System.out.println("\n=============== START OF PHASE 2 ===============");
-        this.handleAcknowledgement();
-    }
+        if(!this.phaseTwoStarted) System.out.println("\n=============== START OF PHASE 2 ===============");
 
-    private void handleAcknowledgement() throws IOException {
+        this.phaseTwoStarted = true;
 
         String decisionMsg = this.receive(true);
 
@@ -135,7 +135,7 @@ public class Subordinate {
     private void resurrect() throws IOException {
         System.out.println("=============== SUBORDINATE RESURRECTS =================\n");
 
-        this.handleAcknowledgement();
+        this.phaseTwo();
     }
 
     public static void main(String[] args) throws IOException {
