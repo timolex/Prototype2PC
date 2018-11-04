@@ -11,6 +11,7 @@ public class Subordinate {
     private Socket coordinatorSocket;
     private BufferedReader reader;
     private OutputStreamWriter writer;
+    private Logger coordinatorLogger;
     private Scanner scanner;
     private boolean phaseTwoStarted;
 
@@ -29,7 +30,7 @@ public class Subordinate {
 
         String msg = this.reader.readLine();
 
-        if (verbosely){
+        if (verbosely && !msg.equals("")){
             System.out.println("C: \"" + msg + "\"\n");
         }
 
@@ -70,29 +71,28 @@ public class Subordinate {
 
     private void phaseOne() throws IOException {
 
-        System.out.println("=============== START OF PHASE 1 ===============");
-
+        Printer.print("=============== START OF PHASE 1 ===============", "blue");
         String prepareMsg = this.receive(true);
         String phaseOneCoordinatorFailure = this.receive(false);
 
         if (prepareMsg.equals("PREPARE") && phaseOneCoordinatorFailure.equals("")){
             this.scanner = new Scanner(System.in);
-            System.out.println("Please enter the vote ('y' for 'YES'/ 'n' for 'NO') to be sent back to the coordinator.");
-            System.out.println("If you wish to let this subordinate fail at this stage, please enter 'f':");
+            System.out.print("Please enter the vote ('y' for 'YES'/ 'n' for 'NO') to be sent back to the coordinator. ");
+            System.out.print("If you wish to let this subordinate fail at this stage, please enter 'f': ");
             String input = scanner.next().toUpperCase();
             if(input.equals("Y") || input.equals("N")){
                 this.send(input);
-                System.out.println("=============== END OF PHASE 1 =================\n");
+                Printer.print("=============== END OF PHASE 1 =================\n", "blue");
                 this.phaseTwo();
             } else if (input.equals("F")){
                 this.send("");
-                System.out.println("=============== SUBORDINATE FAILURE =================\n");
+                Printer.print("=============== SUBORDINATE CRASHES =================\n", "red");
             }
 
         } else if (prepareMsg.equals("PREPARE") && phaseOneCoordinatorFailure.equals("COORDINATOR_FAILURE")) {
 
-            System.out.println("Coordinator crash detected!\n");
-            System.out.println("=============== UNILATERAL ABORT =================\n");
+            System.out.println("Coordinator crash detected!");
+            Printer.print("=============== UNILATERAL ABORT =================\n", "red");
 
         } else {
 
@@ -103,39 +103,92 @@ public class Subordinate {
 
     private void phaseTwo() throws IOException {
 
-        if(!this.phaseTwoStarted) System.out.println("\n=============== START OF PHASE 2 ===============");
+        if(!this.phaseTwoStarted) Printer.print("\n=============== START OF PHASE 2 ===============", "green");
 
         this.phaseTwoStarted = true;
 
         String decisionMsg = this.receive(true);
+        String coordinatorFailureMessage = this.receive(false);
 
-        switch (decisionMsg) {
-            case "COMMIT":
-            case "ABORT":
-                System.out.println("Please decide ('y'/'f'), whether this subordinate should acknowledge the coordinator's decision, or fail now:");
-                String input = this.scanner.next();
-                if (input.toUpperCase().equals("Y")) {
-                    this.send("ACK");
-                    System.out.println("=============== END OF PHASE 2 =================\n");
-                } else {
-                    this.send("");
-                    System.out.println("=============== SUBORDINATE CRASHES =================\n");
-                    this.resurrect();
-                }
-                break;
-            case "":
-                //TODO: Handle the phase two coordinator-failure case here
-                break;
-            default:
-                throw new IOException("Illegal decision message received from coordinator: " + decisionMsg);
+        if(coordinatorFailureMessage.equals("COORDINATOR_FAILURE")) {
+
+            System.out.println("Coordinator crash detected!\n");
+            System.out.println("Handing transaction over to recovery process...\n");
+
+            this.coordinatorLogger = new Logger("/tmp/CoordinatorLog.txt");
+            this.recoveryProcess();
+            Printer.print("=============== END OF PHASE 2 =================\n", "green");
+
+        } else {
+
+            switch (decisionMsg) {
+
+                case "COMMIT":
+                case "ABORT":
+
+                    System.out.println("Please decide ('y'/'f'), whether this subordinate should acknowledge the coordinator's decision, or fail now:");
+                    String input = this.scanner.next();
+
+                    if (input.toUpperCase().equals("Y")) {
+
+                        this.send("ACK");
+                        Printer.print("=============== END OF PHASE 2 =================\n", "green");
+
+                    } else {
+
+                        this.send("");
+                        Printer.print("=============== SUBORDINATE CRASHES =================\n", "red");
+                        this.resurrect();
+
+                    }
+
+                    break;
+
+                default:
+
+                    throw new IOException("Illegal decision message received from coordinator: " + decisionMsg);
+
+            }
         }
 
     }
 
     private void resurrect() throws IOException {
-        System.out.println("=============== SUBORDINATE RESURRECTS =================\n");
+
+        Printer.print("=============== SUBORDINATE RESURRECTS =================\n", "red");
 
         this.phaseTwo();
+    }
+
+    private void recoveryProcess() throws IOException {
+
+        Printer.print("\n=============== START OF RECOVERY PROCESS ===============", "orange");
+
+        String loggedDecision = this.coordinatorLogger.readLog().split(" ")[0];
+
+        switch (loggedDecision) {
+
+            case "ABORT":
+            case "COMMIT":
+
+                System.out.println("Coordinator-log reads: \"" + loggedDecision + "\"");
+
+                break;
+
+            case "":
+
+                System.out.println("Coordinator-log is empty. Transaction is ABORTed (no-information-case).");
+
+                break;
+
+            default:
+
+                throw new IOException("Illegal coordinator-log entry: " + loggedDecision);
+
+        }
+
+        Printer.print("=============== END OF RECOVERY PROCESS =================\n", "orange");
+
     }
 
     public static void main(String[] args) throws IOException {

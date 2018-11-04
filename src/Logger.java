@@ -27,6 +27,16 @@ public class Logger {
 
     }
 
+    public Logger(String filename) throws IOException {
+
+        File logFile = new File(filename);
+
+        FileReader fr = new FileReader(logFile);
+
+        this.br = new BufferedReader(fr);
+
+    }
+
     public void log(String msg, boolean forceWrite) throws IOException {
         String timeStamp  = dateFormat.format(new Date());
         String newLogEntry = msg + " " + timeStamp + "\n";
