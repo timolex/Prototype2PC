@@ -172,12 +172,14 @@ public class Coordinator {
 
         if(scanner.nextLine().toUpperCase().equals("F")) {
 
+            Printer.print("", "");
             this.broadcast("PREPARE", true);
             this.broadcast("COORDINATOR_FAILURE", false);
             Printer.print("=============== COORDINATOR CRASHES =================\n", "red");
 
         } else {
 
+            Printer.print("", "");
             this.broadcast("PREPARE", true);
             this.broadcast("", false);
 
