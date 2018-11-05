@@ -185,6 +185,7 @@ public class Coordinator {
 
             List<String> votes;
             votes = this.receive();
+            List<Integer> socketsToRemove = new ArrayList<>();
             int i = 0;
 
             for(String msg : votes){
@@ -193,12 +194,7 @@ public class Coordinator {
 
                 if(msg.equals("")) {
 
-                    // Here, any not responding Subordinates are removed. Please note, that the Subordinate's indices
-                    // might change accordingly (e.g., if S2 fails, S3 'inherits' index 2 in the receive method.
-                    this.readers.remove(i);
-                    this.writers.remove(i);
-                    this.sockets.get(i).close();
-                    this.sockets.remove(i);
+                    socketsToRemove.add(i);
 
                     decision = false;
                     phaseOneSubordinateFailure = true;
@@ -212,6 +208,8 @@ public class Coordinator {
                 i ++;
 
             }
+
+            this.removeSockets(socketsToRemove);
 
             if(!illegalAnswer) {
 
@@ -235,7 +233,7 @@ public class Coordinator {
 
                 Printer.print("=============== END OF PHASE 1 =================\n", "blue");
 
-                this.phaseTwo(decision);
+                if(this.sockets.size() > 0) this.phaseTwo(decision);
 
             } else {
 
@@ -323,7 +321,7 @@ public class Coordinator {
 
         if(subordinateFailure && !invalidAcknowledgement) {
 
-            System.out.println("\nSubordinate crash(es) detected!\n");
+            Printer.print("\nSubordinate crash(es) detected!\n", "red");
 
             if(!this.recoveryProcessStarted) System.out.println("Handing transaction over to recovery process...");
 
@@ -376,7 +374,46 @@ public class Coordinator {
             }
         }
 
+        Printer.print("", "white");
         this.checkAcknowledgements(crashedSubordinateIndices);
+
+    }
+
+    private void removeSockets(List<Integer> socketsToRemove) throws IOException {
+
+        // Here, any not responding Subordinates are removed. Please note, that the Subordinate's indices
+        // might change accordingly (e.g., if S2 fails, S3 'inherits' index 2 in the receive method.
+        List<Socket> newSockets = new ArrayList<>();
+        List<OutputStreamWriter> newWriters = new ArrayList<>();
+        List<BufferedReader> newReaders = new ArrayList<>();
+
+        for (int count = 0; count < this.sockets.size(); count++) {
+
+            boolean found = false;
+
+            for(int i : socketsToRemove) {
+
+                if (count == i) found = true;
+
+            }
+
+            if(found) {
+
+                this.sockets.get(count).close();
+
+            } else {
+
+                newSockets.add(this.sockets.get(count));
+                newWriters.add(this.writers.get(count));
+                newReaders.add(this.readers.get(count));
+
+            }
+
+        }
+
+        this.sockets = newSockets;
+        this.writers = newWriters;
+        this.readers = newReaders;
 
     }
 

@@ -81,28 +81,37 @@ public class Subordinate {
         String phaseOneCoordinatorFailure = this.receive(false);
 
         if (prepareMsg.equals("PREPARE") && phaseOneCoordinatorFailure.equals("")){
+
             this.scanner = new Scanner(System.in);
+
             System.out.print("Please enter the vote ('y' for 'YES'/ 'n' for 'NO') to be sent back to the coordinator. ");
             System.out.print("If you wish to let this subordinate fail at this stage, please enter 'f': ");
             String input = scanner.next().toUpperCase();
+
             if(input.equals("Y")) {
+
                 this.subordinateLogger.log("PREPARED", true);
                 this.send(input);
                 Printer.print("=============== END OF PHASE 1 =================\n", "blue");
                 this.phaseTwo();
+
             } else if (input.equals("N")) {
+
                 this.subordinateLogger.log("ABORT", true);
                 this.send(input);
                 Printer.print("=============== END OF PHASE 1 =================\n", "blue");
                 this.phaseTwo();
+
             } else if (input.equals("F")){
+
                 this.send("");
                 Printer.print("=============== SUBORDINATE CRASHES =================\n", "red");
+
             }
 
         } else if (prepareMsg.equals("PREPARE") && phaseOneCoordinatorFailure.equals("COORDINATOR_FAILURE")) {
 
-            System.out.println("Coordinator crash detected!");
+            Printer.print("Coordinator crash detected!", "red");
             this.subordinateLogger.log("ABORT", true);
             Printer.print("=============== UNILATERAL ABORT =================\n", "red");
 
@@ -124,7 +133,8 @@ public class Subordinate {
 
         if(coordinatorFailureMessage.equals("COORDINATOR_FAILURE")) {
 
-            System.out.println("Coordinator crash detected!\n");
+            Printer.print("Coordinator crash detected!\n", "red");
+
             System.out.println("Handing transaction over to recovery process...");
 
             this.coordinatorLogger = new Logger("/tmp/CoordinatorLog.txt");
@@ -190,14 +200,22 @@ public class Subordinate {
             case "COMMIT":
 
                 System.out.println("Coordinator-log reads: \"" + loggedDecision + "\"");
-                this.subordinateLogger.log(loggedDecision, true);
+                if(!this.subordinateLogger.readLog().split(" ")[0].equals("ABORT")) {
+
+                    this.subordinateLogger.log(loggedDecision, true);
+
+                }
 
                 break;
 
             case "":
 
                 System.out.println("Coordinator-log is empty. Transaction is aborted (no-information-case).");
-                this.subordinateLogger.log("ABORT", true);
+                if(!this.subordinateLogger.readLog().split(" ")[0].equals("ABORT")) {
+
+                    this.subordinateLogger.log("ABORT", true);
+
+                }
 
                 break;
 
