@@ -11,14 +11,18 @@ public class Subordinate {
     private Socket coordinatorSocket;
     private BufferedReader reader;
     private OutputStreamWriter writer;
+    private Logger subordinateLogger;
     private Logger coordinatorLogger;
     private Scanner scanner;
     private boolean phaseTwoStarted;
 
-    private Subordinate(Socket socket) throws IOException {
+    private Subordinate(Socket socket, String index) throws IOException {
+
         this.coordinatorSocket = socket;
         this.reader = new BufferedReader(new InputStreamReader(coordinatorSocket.getInputStream(), StandardCharsets.UTF_8));
         this.writer = new OutputStreamWriter(coordinatorSocket.getOutputStream(), StandardCharsets.UTF_8);
+        String filename = ("/tmp/Subordinate").concat(String.valueOf(index).concat("Log.txt"));
+        this.subordinateLogger = new Logger(filename, "Subordinate");
         this.phaseTwoStarted = false;
     }
 
@@ -39,6 +43,7 @@ public class Subordinate {
 
     private void send(String msg) throws IOException {
 
+        Printer.print("", "");
         this.writer.write(msg + "\n");
         switch (msg) {
             case ("Y"): {
@@ -80,7 +85,13 @@ public class Subordinate {
             System.out.print("Please enter the vote ('y' for 'YES'/ 'n' for 'NO') to be sent back to the coordinator. ");
             System.out.print("If you wish to let this subordinate fail at this stage, please enter 'f': ");
             String input = scanner.next().toUpperCase();
-            if(input.equals("Y") || input.equals("N")){
+            if(input.equals("Y")) {
+                this.subordinateLogger.log("PREPARED", true);
+                this.send(input);
+                Printer.print("=============== END OF PHASE 1 =================\n", "blue");
+                this.phaseTwo();
+            } else if (input.equals("N")) {
+                this.subordinateLogger.log("ABORT", true);
                 this.send(input);
                 Printer.print("=============== END OF PHASE 1 =================\n", "blue");
                 this.phaseTwo();
@@ -92,6 +103,7 @@ public class Subordinate {
         } else if (prepareMsg.equals("PREPARE") && phaseOneCoordinatorFailure.equals("COORDINATOR_FAILURE")) {
 
             System.out.println("Coordinator crash detected!");
+            this.subordinateLogger.log("ABORT", true);
             Printer.print("=============== UNILATERAL ABORT =================\n", "red");
 
         } else {
@@ -126,10 +138,16 @@ public class Subordinate {
                 case "COMMIT":
                 case "ABORT":
 
-                    System.out.print("Please decide ('y'/'f'), whether this subordinate should acknowledge the coordinator's decision, or fail now:");
+                    System.out.print("Please decide ('y'/'f'), whether this subordinate should acknowledge the coordinator's decision, or fail now: ");
                     String input = this.scanner.next();
 
                     if (input.toUpperCase().equals("Y")) {
+
+                        if(!this.subordinateLogger.readLog().split(" ")[0].equals("ABORT")) {
+
+                            this.subordinateLogger.log(decisionMsg, true);
+
+                        }
 
                         this.send("ACK");
                         Printer.print("=============== END OF PHASE 2 =================\n", "green");
@@ -172,12 +190,14 @@ public class Subordinate {
             case "COMMIT":
 
                 System.out.println("Coordinator-log reads: \"" + loggedDecision + "\"");
+                this.subordinateLogger.log(loggedDecision, true);
 
                 break;
 
             case "":
 
-                System.out.println("Coordinator-log is empty. Transaction is ABORTed (no-information-case).");
+                System.out.println("Coordinator-log is empty. Transaction is aborted (no-information-case).");
+                this.subordinateLogger.log("ABORT", true);
 
                 break;
 
@@ -191,17 +211,35 @@ public class Subordinate {
 
     }
 
+    private static void printHelp(){
+
+        System.out.println("USAGE\n=====\n arguments:\n  - Subordinate -F x       // x (integer) defines this " +
+                "Subordinate's index required for its log's filename");
+
+    }
+
     public static void main(String[] args) throws IOException {
 
-        // Trying to connect with coordinator. TODO: Repeat this several times, until a connection has been established.
-        Socket coordinatorSocket = new Socket("localhost", 8080);
+        if ((args.length == 2) && (args[0].equals("-F")) && (Integer.parseInt(args[1]) > 0)) {
 
-        try {
-            Subordinate subordinate = new Subordinate(coordinatorSocket);
-            subordinate.initiate();
+            // Trying to connect with coordinator. TODO: Repeat this several times, until a connection has been established.
+            Socket coordinatorSocket = new Socket("localhost", 8080);
 
-        } finally {
-            coordinatorSocket.close();
+            try {
+
+                Subordinate subordinate = new Subordinate(coordinatorSocket, args[1]);
+                subordinate.initiate();
+
+            } finally {
+
+                coordinatorSocket.close();
+
+            }
+
+        } else {
+
+            printHelp();
+
         }
     }
 }

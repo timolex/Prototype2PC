@@ -50,7 +50,7 @@ public class Coordinator {
 
                 if(verbosely){
 
-                    System.out.println("[No message broadcast to subordinates]");
+                    System.out.println("[No message broadcast to subordinates]\n");
 
                 }
                 break;
@@ -59,7 +59,7 @@ public class Coordinator {
 
                 if(verbosely){
 
-                    System.out.println("Message broadcast to subordinates: " + "\"" + msg + "\"");
+                    System.out.println("Message broadcast to subordinates: " + "\"" + msg + "\"\n");
 
                 }
                 break;
@@ -167,7 +167,7 @@ public class Coordinator {
         boolean phaseOneSubordinateFailure = false;
         boolean illegalAnswer = false;
 
-        System.out.print("If you wish to let the coordinator fail at this stage, please enter 'f': ");
+        System.out.print("If you wish to let the coordinator fail after broadcasting \"PREPARE\", please enter 'f': ");
 
 
         if(scanner.nextLine().toUpperCase().equals("F")) {
@@ -388,51 +388,47 @@ public class Coordinator {
 
     public static void main (String[] args) throws IOException {
 
-        if(args.length == 0) {
+        if((args.length == 2) && (args[0].equals("-S")) && (Integer.parseInt(args[1]) > 0)) {
 
-            printHelp();
+            int subordinateCounter = 0;
+            int maxSubordinates = Integer.parseInt(args[1]);
 
-        } else if(args[0].equals("-S")) {
+            ServerSocket serverSocket = new ServerSocket(8080);
+            List<Socket> sockets = new ArrayList<>(maxSubordinates);
 
-            if(args[1] != null && Integer.parseInt(args[1]) > 0) {
+            try {
 
-                int subordinateCounter = 0;
-                int maxSubordinates = Integer.parseInt(args[1]);
+                System.out.println("\nCoordinator-socket established, waiting for " + maxSubordinates + " subordinates to connect...\n");
 
-                ServerSocket serverSocket = new ServerSocket(8080);
-                List<Socket> sockets = new ArrayList<>(maxSubordinates);
+                while (subordinateCounter < maxSubordinates) {
 
-                try {
+                    Socket socket = serverSocket.accept();
+                    sockets.add(socket);
+                    subordinateCounter++;
+                    System.out.println("Added socket for subordinate " + "S" + subordinateCounter + " @ port " + socket.getPort() + ".");
 
-                    System.out.println("\nCoordinator-socket established, waiting for " + maxSubordinates + " subordinates to connect...\n");
+                }
 
-                    while (subordinateCounter < maxSubordinates) {
+                System.out.println("\n");
 
-                        Socket socket = serverSocket.accept();
-                        sockets.add(socket);
-                        subordinateCounter++;
-                        System.out.println("Added socket for subordinate " + "S" + subordinateCounter + " @ port " + socket.getPort() + ".");
+                Coordinator coordinator = new Coordinator(sockets);
+                coordinator.initiate();
 
-                    }
+            } finally {
 
-                    System.out.println("\n");
+                serverSocket.close();
 
-                    Coordinator coordinator = new Coordinator(sockets);
-                    coordinator.initiate();
-
-                } finally {
-
-                    serverSocket.close();
-
-                    for (Socket socket : sockets) {
-                        socket.close();
-                    }
-
+                for (Socket socket : sockets) {
+                    socket.close();
                 }
 
             }
 
-        } else printHelp();
+        } else {
+
+            printHelp();
+
+        }
 
     }
 }
