@@ -113,7 +113,7 @@ public class Subordinate {
         if(coordinatorFailureMessage.equals("COORDINATOR_FAILURE")) {
 
             System.out.println("Coordinator crash detected!\n");
-            System.out.println("Handing transaction over to recovery process...\n");
+            System.out.println("Handing transaction over to recovery process...");
 
             this.coordinatorLogger = new Logger("/tmp/CoordinatorLog.txt");
             this.recoveryProcess();
@@ -126,7 +126,7 @@ public class Subordinate {
                 case "COMMIT":
                 case "ABORT":
 
-                    System.out.println("Please decide ('y'/'f'), whether this subordinate should acknowledge the coordinator's decision, or fail now:");
+                    System.out.print("Please decide ('y'/'f'), whether this subordinate should acknowledge the coordinator's decision, or fail now:");
                     String input = this.scanner.next();
 
                     if (input.toUpperCase().equals("Y")) {

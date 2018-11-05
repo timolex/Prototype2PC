@@ -179,7 +179,7 @@ public class Coordinator {
 
         } else {
 
-            Printer.print("", "");
+            Printer.print("", "white");
             this.broadcast("PREPARE", true);
             this.broadcast("", false);
 
@@ -266,6 +266,8 @@ public class Coordinator {
 
         } else {
 
+            Printer.print("", "white");
+
             if(decision){
 
                 this.broadcast("COMMIT", true);
@@ -323,7 +325,7 @@ public class Coordinator {
 
             System.out.println("\nSubordinate crash(es) detected!\n");
 
-            if(!this.recoveryProcessStarted) System.out.println("Handing transaction over to recovery process...\n");
+            if(!this.recoveryProcessStarted) System.out.println("Handing transaction over to recovery process...");
 
             this.recoveryProcess(crashedSubordinateIndices);
 
@@ -402,14 +404,14 @@ public class Coordinator {
 
                 try {
 
-                    System.out.println("\nCoordinator-Socket established, waiting for " + maxSubordinates + " subordinates to connect...\n");
+                    System.out.println("\nCoordinator-socket established, waiting for " + maxSubordinates + " subordinates to connect...\n");
 
                     while (subordinateCounter < maxSubordinates) {
 
                         Socket socket = serverSocket.accept();
                         sockets.add(socket);
                         subordinateCounter++;
-                        System.out.println("Added Socket for subordinate " + "S" + subordinateCounter + " @ port " + socket.getPort() + ".");
+                        System.out.println("Added socket for subordinate " + "S" + subordinateCounter + " @ port " + socket.getPort() + ".");
 
                     }
 
