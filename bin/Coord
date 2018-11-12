@@ -1,0 +1,6 @@
+#!/bin/bash
+clear &&
+echo "Coordinator:" && 
+java Coordinator -S 2 &&
+echo "Coordinator-Log:" &&
+cat /tmp/CoordinatorLog.txt

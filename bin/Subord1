@@ -1,0 +1,6 @@
+#!/bin/bash
+clear &&
+echo "Subordinate 1:" &&
+java Subordinate -F 1 &&
+echo "Subordinate 1 Log:" &&
+cat /tmp/Subordinate1Log.txt
