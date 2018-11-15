@@ -108,9 +108,18 @@ public class Subordinate {
                 this.phaseTwo();
 
 
+            } else if (userInput.toUpperCase().equals("F") && ((System.currentTimeMillis() - startTime) < Coordinator.TIMEOUT_MILLISECS)){
+
+                Printer.print("=============== SUBORDINATE CRASHES =================\n", "red");
+
+                do {
+                    // Here the process waits, such that no NullPointerException results in Coordinator.java:receive()
+                } while (System.currentTimeMillis() - startTime < Coordinator.TIMEOUT_MILLISECS);
+
+
             } else {
 
-                Printer.print("No valid input detected within 6 seconds!\n", "red");
+                Printer.print("\nNo valid input detected within 6 seconds!", "red");
                 Printer.print("=============== SUBORDINATE CRASHES =================\n", "red");
 
                 do {
