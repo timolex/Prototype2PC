@@ -4,6 +4,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -89,31 +90,34 @@ public class Coordinator {
 
         for(BufferedReader reader : this.readers) {
 
-            String msg = reader.readLine();
+            try {
 
-            msgs.add(msg);
+                String msg = reader.readLine();
+                msgs.add(msg);
 
-            switch (msg) {
+                switch (msg) {
 
-                case ("Y"): {
-                    System.out.println("S" + i + ": " + "\"YES\"");
-                    break;
+                    case ("Y"): {
+                        System.out.println("S" + i + ": " + "\"YES\"");
+                        break;
+                    }
+
+                    case ("N"): {
+                        System.out.println("S" + i + ": " + "\"NO\"");
+                        break;
+                    }
+
+                    default: {
+                        System.out.println("S" + i + ": " + "\"" + msg + "\"");
+                        break;
+                    }
+
                 }
 
-                case ("N"): {
-                    System.out.println("S" + i + ": " + "\"NO\"");
-                    break;
-                }
+            } catch(SocketTimeoutException ste) {
 
-                case ("") : {
-                    System.out.println("S" + i + ": " + "[No message received]");
-                    break;
-                }
-
-                default: {
-                    System.out.println("S" + i + ": " + "\"" + msg + "\"");
-                    break;
-                }
+                System.out.println("S" + i + ": " + "[No message received]");
+                msgs.add("");
 
             }
 
@@ -145,19 +149,6 @@ public class Coordinator {
 
         return msg;
     }
-
-    private void initiate() throws IOException {
-
-        // this.broadcast("Hello, this is your coordinator speaking!");
-
-        /*for (String msg : this.receive()){
-            System.out.println(msg);
-        }*/
-
-        this.phaseOne();
-
-    }
-
 
     private void phaseOne() throws IOException {
 
@@ -440,6 +431,8 @@ public class Coordinator {
                 while (subordinateCounter < maxSubordinates) {
 
                     Socket socket = serverSocket.accept();
+                    //TODO: Think about this value; How long should we wait for Subordinate's answers?
+                    socket.setSoTimeout(6000);
                     sockets.add(socket);
                     subordinateCounter++;
                     System.out.println("Added socket for subordinate " + "S" + subordinateCounter + " @ port " + socket.getPort() + ".");
@@ -449,7 +442,7 @@ public class Coordinator {
                 System.out.println("\n");
 
                 Coordinator coordinator = new Coordinator(sockets);
-                coordinator.initiate();
+                coordinator.phaseOne();
 
             } finally {
 

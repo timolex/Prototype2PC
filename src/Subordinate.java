@@ -70,6 +70,7 @@ public class Subordinate {
     private void initiate() throws IOException {
 
         System.out.println("\nMy coordinator (C) is @ port " + this.getCoordinatorSocket().getPort() + "\n\n");
+
         this.phaseOne();
 
     }
@@ -77,6 +78,7 @@ public class Subordinate {
     private void phaseOne() throws IOException {
 
         Printer.print("=============== START OF PHASE 1 ===============", "blue");
+
         String prepareMsg = this.receive(true);
         String phaseOneCoordinatorFailure = this.receive(false);
 
@@ -84,30 +86,38 @@ public class Subordinate {
 
             this.scanner = new Scanner(System.in);
 
-            System.out.print("Please enter the vote ('y' for 'YES'/ 'n' for 'NO') to be sent back to the coordinator. ");
+            System.out.print("Please enter the vote ('y' for 'YES'/ 'n' for 'NO') to be sent back to the coordinator within 6 seconds. ");
             System.out.print("If you wish to let this subordinate fail at this stage, please enter 'f': ");
-            String input = scanner.next().toUpperCase();
+            long startTime = System.currentTimeMillis();
 
-            if(input.equals("Y")) {
+            String userInput = this.scanner.nextLine();
+
+            if (userInput.toUpperCase().equals("Y") && ((System.currentTimeMillis() - startTime) < 6000))  {
 
                 this.subordinateLogger.log("PREPARED", true);
-                this.send(input);
+                this.send("Y");
                 Printer.print("=============== END OF PHASE 1 =================\n", "blue");
                 this.phaseTwo();
 
-            } else if (input.equals("N")) {
+            } else if (userInput.toUpperCase().equals("N") && ((System.currentTimeMillis() - startTime) < 6000)) {
 
                 this.subordinateLogger.log("ABORT", true);
-                this.send(input);
+                this.send("N");
                 Printer.print("=============== END OF PHASE 1 =================\n", "blue");
                 this.phaseTwo();
 
-            } else if (input.equals("F")){
 
-                this.send("");
+            } else {
+
+                Printer.print("No valid input detected within 6 seconds!\n", "red");
                 Printer.print("=============== SUBORDINATE CRASHES =================\n", "red");
 
+                do {
+                    // Here the process waits, such that no NullPointerException results in Coordinator.java:receive()
+                } while (System.currentTimeMillis() - startTime < 6000);
+
             }
+
 
         } else if (prepareMsg.equals("PREPARE") && phaseOneCoordinatorFailure.equals("COORDINATOR_FAILURE")) {
 
