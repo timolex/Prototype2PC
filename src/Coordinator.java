@@ -4,13 +4,14 @@ import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.net.SocketTimeoutException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
 
 public class Coordinator {
+
+    public static final int TIMEOUT_MILLISECS = 6000;
 
     private List<Socket> sockets;
     private List<OutputStreamWriter> writers = new ArrayList<>();
@@ -83,47 +84,42 @@ public class Coordinator {
 
     }
 
-    private List<String> receive() throws IOException {
+    private List<String> receive() {
 
-        int i=1;
         List<String> msgs = new ArrayList<>();
+        List<CoordinatorReceiver> receiverThreads = new ArrayList<>();
+        int subordinateIndex = 1;
+        int msgCounter = 0;
 
-        for(BufferedReader reader : this.readers) {
+        for(BufferedReader subordinateReader : this.readers) {
 
-            try {
+            CoordinatorReceiver coordinatorReceiver = new CoordinatorReceiver(subordinateReader, subordinateIndex);
+            coordinatorReceiver.start();
+            receiverThreads.add(coordinatorReceiver);
 
-                String msg = reader.readLine();
-                msgs.add(msg);
-
-                switch (msg) {
-
-                    case ("Y"): {
-                        System.out.println("S" + i + ": " + "\"YES\"");
-                        break;
-                    }
-
-                    case ("N"): {
-                        System.out.println("S" + i + ": " + "\"NO\"");
-                        break;
-                    }
-
-                    default: {
-                        System.out.println("S" + i + ": " + "\"" + msg + "\"");
-                        break;
-                    }
-
-                }
-
-            } catch(SocketTimeoutException ste) {
-
-                System.out.println("S" + i + ": " + "[No message received]");
-                msgs.add("");
-
-            }
-
-            i++;
+            ++subordinateIndex;
 
         }
+
+        while(msgCounter < receiverThreads.size()) {
+
+            msgCounter = 0;
+
+            for(CoordinatorReceiver thread : receiverThreads) {
+
+                if(thread.isMsgYetReceived()) {
+                    ++msgCounter;
+                }
+            }
+
+        }
+
+        for (CoordinatorReceiver receiverThread : receiverThreads) {
+
+            msgs.add(receiverThread.getReceivedMessage());
+
+        }
+
 
         System.out.println();
 
@@ -432,7 +428,7 @@ public class Coordinator {
 
                     Socket socket = serverSocket.accept();
                     //TODO: Think about this value; How long should we wait for Subordinate's answers?
-                    socket.setSoTimeout(6000);
+                    socket.setSoTimeout(TIMEOUT_MILLISECS);
                     sockets.add(socket);
                     subordinateCounter++;
                     System.out.println("Added socket for subordinate " + "S" + subordinateCounter + " @ port " + socket.getPort() + ".");

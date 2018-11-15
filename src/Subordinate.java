@@ -16,6 +16,7 @@ public class Subordinate {
     private Scanner scanner;
     private boolean phaseTwoStarted;
 
+
     private Subordinate(Socket socket, String index) throws IOException {
 
         this.coordinatorSocket = socket;
@@ -92,14 +93,14 @@ public class Subordinate {
 
             String userInput = this.scanner.nextLine();
 
-            if (userInput.toUpperCase().equals("Y") && ((System.currentTimeMillis() - startTime) < 6000))  {
+            if (userInput.toUpperCase().equals("Y") && ((System.currentTimeMillis() - startTime) < Coordinator.TIMEOUT_MILLISECS))  {
 
                 this.subordinateLogger.log("PREPARED", true);
                 this.send("Y");
                 Printer.print("=============== END OF PHASE 1 =================\n", "blue");
                 this.phaseTwo();
 
-            } else if (userInput.toUpperCase().equals("N") && ((System.currentTimeMillis() - startTime) < 6000)) {
+            } else if (userInput.toUpperCase().equals("N") && ((System.currentTimeMillis() - startTime) < Coordinator.TIMEOUT_MILLISECS)) {
 
                 this.subordinateLogger.log("ABORT", true);
                 this.send("N");
@@ -114,7 +115,7 @@ public class Subordinate {
 
                 do {
                     // Here the process waits, such that no NullPointerException results in Coordinator.java:receive()
-                } while (System.currentTimeMillis() - startTime < 6000);
+                } while (System.currentTimeMillis() - startTime < Coordinator.TIMEOUT_MILLISECS);
 
             }
 
