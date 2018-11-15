@@ -87,7 +87,8 @@ public class Subordinate {
 
             this.scanner = new Scanner(System.in);
 
-            System.out.print("Please enter the vote ('y' for 'YES'/ 'n' for 'NO') to be sent back to the coordinator within 6 seconds. ");
+            System.out.print("Please enter the vote ('y' for 'YES'/ 'n' for 'NO') to be sent back to the coordinator within "
+                    + Coordinator.TIMEOUT_MILLISECS/1000 + " seconds. ");
             System.out.print("If you wish to let this subordinate fail at this stage, please enter 'f': ");
             long startTime = System.currentTimeMillis();
 
@@ -119,7 +120,7 @@ public class Subordinate {
 
             } else {
 
-                Printer.print("\nNo valid input detected within 6 seconds!", "red");
+                Printer.print("\nNo valid input detected within " + Coordinator.TIMEOUT_MILLISECS / 1000 + " seconds!", "red");
                 Printer.print("=============== SUBORDINATE CRASHES =================\n", "red");
 
                 do {
@@ -184,7 +185,6 @@ public class Subordinate {
 
                     } else {
 
-                        this.send("");
                         Printer.print("=============== SUBORDINATE CRASHES =================\n", "red");
                         this.resurrect();
 

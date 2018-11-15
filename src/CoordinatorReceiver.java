@@ -1,5 +1,6 @@
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.net.SocketException;
 import java.net.SocketTimeoutException;
 
 public class CoordinatorReceiver implements Runnable {
@@ -43,6 +44,11 @@ public class CoordinatorReceiver implements Runnable {
                 break;
             }
 
+            case(""): {
+                Printer.print("S" + this.subordinateIndex + ": " + "[No message received]", "white");
+                break;
+            }
+
             default: {
                 Printer.print("S" + this.subordinateIndex + ": " + "\"" + this.receivedMessage + "\"", "white");
                 break;
@@ -61,7 +67,7 @@ public class CoordinatorReceiver implements Runnable {
             this.print();
             this.msgYetReceived = true;
 
-        } catch (SocketTimeoutException ste) {
+        } catch (SocketTimeoutException | NullPointerException | SocketException ste) {
 
             this.receivedMessage = "";
             this.print();
