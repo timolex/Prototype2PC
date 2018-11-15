@@ -169,10 +169,13 @@ public class Subordinate {
                 case "COMMIT":
                 case "ABORT":
 
-                    System.out.print("Please decide ('y'/'f'), whether this subordinate should acknowledge the coordinator's decision, or fail now: ");
-                    String input = this.scanner.next();
+                    System.out.print("Please enter 'y' within " + Coordinator.TIMEOUT_MILLISECS / 1000 + " seconds, for" +
+                            " letting this subordinate acknowledge the coordinator's decision: ");
 
-                    if (input.toUpperCase().equals("Y")) {
+                    long startTime = System.currentTimeMillis();
+                    String input = this.scanner.nextLine();
+
+                    if (input.toUpperCase().equals("Y") && (System.currentTimeMillis() - startTime < Coordinator.TIMEOUT_MILLISECS)) {
 
                         if(!this.subordinateLogger.readLog().split(" ")[0].equals("ABORT")) {
 
@@ -185,6 +188,7 @@ public class Subordinate {
 
                     } else {
 
+                        Printer.print("\nNot acknowledged within " + Coordinator.TIMEOUT_MILLISECS / 1000 + " seconds!", "red");
                         Printer.print("=============== SUBORDINATE CRASHES =================\n", "red");
                         this.resurrect();
 
