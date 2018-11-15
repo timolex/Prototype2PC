@@ -172,12 +172,28 @@ public class Subordinate {
                     System.out.print("Please enter 'y' within " + Coordinator.TIMEOUT_MILLISECS / 1000 + " seconds, for" +
                             " letting this subordinate acknowledge the coordinator's decision: ");
 
+                    InputHandler inputHandler = new InputHandler(new Scanner(System.in));
+                    inputHandler.start();
+                    boolean inputPresent = false;
+
                     long startTime = System.currentTimeMillis();
-                    String input = this.scanner.nextLine();
+                    long timeDiff = 0;
 
-                    if (input.toUpperCase().equals("Y") && (System.currentTimeMillis() - startTime < Coordinator.TIMEOUT_MILLISECS)) {
+                    while (!inputPresent && (timeDiff < Coordinator.TIMEOUT_MILLISECS)) {
 
-                        if(!this.subordinateLogger.readLog().split(" ")[0].equals("ABORT")) {
+                        inputPresent = inputHandler.isInputYetReceived();
+                        timeDiff = System.currentTimeMillis() - startTime;
+
+                        System.out.print("");
+
+                    }
+
+                    if (inputPresent &&
+                            inputHandler.getUserInput().toUpperCase().equals("Y") &&
+                            (System.currentTimeMillis() - startTime < Coordinator.TIMEOUT_MILLISECS)) {
+
+
+                        if (!this.subordinateLogger.readLog().split(" ")[0].equals("ABORT")) {
 
                             this.subordinateLogger.log(decisionMsg, true);
 
@@ -185,6 +201,7 @@ public class Subordinate {
 
                         this.send("ACK");
                         Printer.print("=============== END OF PHASE 2 =================\n", "green");
+
 
                     } else {
 
