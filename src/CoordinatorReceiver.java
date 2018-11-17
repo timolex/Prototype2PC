@@ -67,6 +67,7 @@ public class CoordinatorReceiver implements Runnable {
             this.print();
             this.msgYetReceived = true;
 
+        // TODO: Check, if this NullPointerException could also be caught and its stacktrace printed.
         } catch (SocketTimeoutException | NullPointerException | SocketException ste) {
 
             this.receivedMessage = "";

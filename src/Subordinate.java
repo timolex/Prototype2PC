@@ -3,6 +3,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.nio.charset.StandardCharsets;
 import java.util.Scanner;
 
@@ -12,8 +13,6 @@ public class Subordinate {
     private BufferedReader reader;
     private OutputStreamWriter writer;
     private Logger subordinateLogger;
-    private Logger coordinatorLogger;
-    private boolean phaseTwoStarted;
 
 
     private Subordinate(Socket socket, String index) throws IOException {
@@ -23,7 +22,6 @@ public class Subordinate {
         this.writer = new OutputStreamWriter(coordinatorSocket.getOutputStream(), StandardCharsets.UTF_8);
         String filename = ("/tmp/Subordinate").concat(String.valueOf(index).concat("Log.txt"));
         this.subordinateLogger = new Logger(filename, "Subordinate");
-        this.phaseTwoStarted = false;
     }
 
     private Socket getCoordinatorSocket() {
@@ -82,6 +80,9 @@ public class Subordinate {
         String prepareMsg = this.receive(true);
         String phaseOneCoordinatorFailure = this.receive(false);
 
+        // Here, for all further incoming messages, a timeout (defined in Coordinator.java) is set.
+        this.coordinatorSocket.setSoTimeout(Coordinator.TIMEOUT_MILLISECS);
+
         if (prepareMsg.equals("PREPARE") && phaseOneCoordinatorFailure.equals("")){
 
 
@@ -136,7 +137,6 @@ public class Subordinate {
                 // Terminate the program, even if System.in still blocks in InputHandler
                 System.exit(0);
 
-
             } else {
 
                 Printer.print("\nNo valid input detected within " + Coordinator.TIMEOUT_MILLISECS / 1000 + " seconds!", "red");
@@ -168,22 +168,64 @@ public class Subordinate {
 
     private void phaseTwo() throws IOException {
 
-        if(!this.phaseTwoStarted) Printer.print("\n=============== START OF PHASE 2 ===============", "green");
+        Printer.print("\n=============== START OF PHASE 2 ===============", "green");
+        Printer.print("Waiting for the coordinator's decision message...", "white");
 
-        this.phaseTwoStarted = true;
+        String decisionMsg = "";
+        int attempts = 0;
+        boolean msgArrived = false;
+        long startTime = 0;
 
-        String decisionMsg = this.receive(true);
-        String coordinatorFailureMessage = this.receive(false);
+        while(attempts < 3 && !msgArrived) {
 
-        if(coordinatorFailureMessage.equals("COORDINATOR_FAILURE")) {
+            try {
+
+                startTime = System.currentTimeMillis();
+                decisionMsg = this.receive(true);
+                msgArrived = true;
+
+            } catch (SocketTimeoutException ste) {
+
+                Printer.print("\nNo message received from coordinator", "white");
+                int printAttempt = attempts + 2;
+                if(attempts < 2) Printer.print("Starting receive-attempt " + printAttempt + "...\n", "white");
+
+                ++attempts;
+
+            } catch (NullPointerException ne) {
+
+                while((System.currentTimeMillis() - startTime) < Coordinator.TIMEOUT_MILLISECS) {
+
+                    // wait
+
+                }
+
+                Printer.print("\nNo message received from coordinator", "white");
+                int printAttempt = attempts + 2;
+                if(attempts < 2) Printer.print("Starting receive-attempt " + printAttempt + "...", "white");
+
+                // Resetting the clock
+                startTime = System.currentTimeMillis();
+                ++attempts;
+
+            } catch (IOException ioe) {
+
+                ioe.printStackTrace();
+
+            }
+        }
+
+        if(attempts >= 3) {
 
             Printer.print("Coordinator crash detected!\n", "red");
 
-            System.out.println("Handing transaction over to recovery process...");
+            if(!this.subordinateLogger.readLog().split(" ")[0].equals("ABORT")){
 
-            this.coordinatorLogger = new Logger("/tmp/CoordinatorLog.txt");
-            this.recoveryProcess();
-            Printer.print("=============== END OF PHASE 2 =================\n", "green");
+                this.subordinateLogger.log("ABORT", true);
+
+            }
+
+            Printer.print("=============== UNILATERAL ABORT =================\n", "red");
 
         } else {
 
@@ -199,7 +241,7 @@ public class Subordinate {
                     inputHandler.start();
                     boolean inputPresent = false;
 
-                    long startTime = System.currentTimeMillis();
+                    startTime = System.currentTimeMillis();
                     long timeDiff = 0;
 
                     while (!inputPresent && (timeDiff < Coordinator.TIMEOUT_MILLISECS)) {
@@ -230,8 +272,9 @@ public class Subordinate {
 
                         Printer.print("\nNot acknowledged within " + Coordinator.TIMEOUT_MILLISECS / 1000 + " seconds!", "red");
                         Printer.print("=============== SUBORDINATE CRASHES =================\n", "red");
-                        this.resurrect();
 
+                        // Terminate the program, even if System.in still blocks in InputHandler
+                        System.exit(0);
                     }
 
                     break;
@@ -252,47 +295,6 @@ public class Subordinate {
         this.phaseTwo();
     }
 
-    private void recoveryProcess() throws IOException {
-
-        Printer.print("\n=============== START OF RECOVERY PROCESS ===============", "orange");
-
-        String loggedDecision = this.coordinatorLogger.readLog().split(" ")[0];
-
-        switch (loggedDecision) {
-
-            case "ABORT":
-            case "COMMIT":
-
-                System.out.println("Coordinator-log reads: \"" + loggedDecision + "\"");
-                if(!this.subordinateLogger.readLog().split(" ")[0].equals("ABORT")) {
-
-                    this.subordinateLogger.log(loggedDecision, true);
-
-                }
-
-                break;
-
-            case "":
-
-                System.out.println("Coordinator-log is empty. Transaction is aborted (no-information-case).");
-                if(!this.subordinateLogger.readLog().split(" ")[0].equals("ABORT")) {
-
-                    this.subordinateLogger.log("ABORT", true);
-
-                }
-
-                break;
-
-            default:
-
-                throw new IOException("Illegal coordinator-log entry: " + loggedDecision);
-
-        }
-
-        Printer.print("=============== END OF RECOVERY PROCESS =================\n", "orange");
-
-    }
-
     private static void printHelp(){
 
         System.out.println("USAGE\n=====\n arguments:\n  - Subordinate -F x       // x (integer) defines this " +
@@ -304,7 +306,6 @@ public class Subordinate {
 
         if ((args.length == 2) && (args[0].equals("-F")) && (Integer.parseInt(args[1]) > 0)) {
 
-            // Trying to connect with coordinator. TODO: Repeat this several times, until a connection has been established.
             Socket coordinatorSocket = new Socket("localhost", 8080);
 
             try {
