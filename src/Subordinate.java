@@ -227,13 +227,15 @@ public class Subordinate {
 
         if(attempts >= 3) {
 
-            Printer.print("\nCoordinator is considered crashed permanently!\n", "red");
+            Printer.print("\nCoordinator is considered crashed permanently!", "red");
 
             if(!this.subordinateLogger.readLog().split(" ")[0].equals("ABORT")){
 
                 this.subordinateLogger.log("ABORT", true);
 
             }
+
+            this.subordinateLogger.log("END", false);
 
             Printer.print("=============== END OF RECOVERY PROCESS =================", "orange");
             Printer.print("=============== UNILATERAL ABORT =================\n", "red");
