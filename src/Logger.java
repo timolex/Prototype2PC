@@ -1,6 +1,7 @@
 import java.io.*;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.Stack;
 
 public class Logger {
 
@@ -8,9 +9,10 @@ public class Logger {
     private BufferedWriter bw;
     private SimpleDateFormat dateFormat = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss");
     private String nodeType;
+    private Stack<String> reverseLog = new Stack<>();
 
 
-    public Logger(String filename, String nodeType) throws IOException {
+    public Logger(String filename, String nodeType, boolean append) throws IOException {
 
         File logFile = new File(filename);
 
@@ -19,21 +21,22 @@ public class Logger {
         }
 
         FileReader fr = new FileReader(logFile);
-        FileWriter fw = new FileWriter(logFile);
+        FileWriter fw = new FileWriter(logFile, append);
 
         this.br = new BufferedReader(fr);
         this.bw = new BufferedWriter(fw);
         this.nodeType = nodeType;
 
-    }
+        String line;
 
-    public Logger(String filename) throws IOException {
+        while((line = this.br.readLine()) != null) {
 
-        File logFile = new File(filename);
+            reverseLog.push(line);
 
-        FileReader fr = new FileReader(logFile);
+        }
 
-        this.br = new BufferedReader(fr);
+        this.bw.write("\n");
+        this.bw.flush();
 
     }
 
@@ -41,8 +44,10 @@ public class Logger {
         String timeStamp  = dateFormat.format(new Date());
         String newLogEntry = msg + " " + timeStamp + "\n";
 
-        bw.write(newLogEntry);
-        bw.flush();
+        this.bw.write(newLogEntry);
+        this.bw.flush();
+
+        this.reverseLog.push(newLogEntry);
 
         if(forceWrite){
             System.out.println("\n" + this.nodeType +" force-writes: \"" + msg + "\"");
@@ -50,13 +55,22 @@ public class Logger {
             System.out.println("\n" + this.nodeType +" writes: \"" + msg + "\"");
         }
 
+        if(msg.equals("END")) finalizeLog();
+
     }
 
-    public String readLog() throws IOException {
-        return br.readLine();
+    public String readLog() {
+
+        return this.reverseLog.peek();
+
     }
 
-    protected void finalize( ) throws Throwable {
+    private void finalizeLog() throws IOException {
+
+        this.bw.write("\n");
+        this.bw.flush();
+
         this.bw.close();
+
     }
 }

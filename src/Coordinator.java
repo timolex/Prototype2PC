@@ -35,7 +35,7 @@ public class Coordinator {
         }
 
         this.scanner = new Scanner(System.in);
-        this.logger = new Logger("/tmp/CoordinatorLog.txt", "Coordinator");
+        this.logger = new Logger("/tmp/CoordinatorLog.txt", "Coordinator", true);
         this.loggedDecision = "";
         this.recoveryProcessStarted = false;
 
@@ -300,7 +300,8 @@ public class Coordinator {
 
         } else {
 
-            logger.log("END", false);
+            this.logger.log("END", false);
+
             if (this.recoveryProcessStarted)
                 Printer.print("=============== END OF RECOVERY PROCESS =================\n", "orange");
 

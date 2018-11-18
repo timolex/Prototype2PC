@@ -12,7 +12,7 @@ public class Subordinate {
     private Socket coordinatorSocket;
     private BufferedReader reader;
     private OutputStreamWriter writer;
-    private Logger subordinateLogger;
+    private Logger logger;
 
 
     private Subordinate(Socket socket, String index) throws IOException {
@@ -21,7 +21,7 @@ public class Subordinate {
         this.reader = new BufferedReader(new InputStreamReader(coordinatorSocket.getInputStream(), StandardCharsets.UTF_8));
         this.writer = new OutputStreamWriter(coordinatorSocket.getOutputStream(), StandardCharsets.UTF_8);
         String filename = ("/tmp/Subordinate").concat(String.valueOf(index).concat("Log.txt"));
-        this.subordinateLogger = new Logger(filename, "Subordinate");
+        this.logger = new Logger(filename, "Subordinate", true);
     }
 
     private Socket getCoordinatorSocket() {
@@ -121,7 +121,7 @@ public class Subordinate {
                     inputHandler.getUserInput().toUpperCase().equals("Y") &&
                     ((System.currentTimeMillis() - startTime) < Coordinator.TIMEOUT_MILLISECS))  {
 
-                this.subordinateLogger.log("PREPARED", true);
+                this.logger.log("PREPARED", true);
                 this.send("Y");
                 Printer.print("=============== END OF PHASE 1 =================\n", "blue");
                 this.phaseTwo();
@@ -130,7 +130,7 @@ public class Subordinate {
                     inputHandler.getUserInput().toUpperCase().equals("N") &&
                     ((System.currentTimeMillis() - startTime) < Coordinator.TIMEOUT_MILLISECS)) {
 
-                this.subordinateLogger.log("ABORT", true);
+                this.logger.log("ABORT", true);
                 this.send("N");
                 Printer.print("=============== END OF PHASE 1 =================\n", "blue");
                 this.phaseTwo();
@@ -229,13 +229,13 @@ public class Subordinate {
 
             Printer.print("\nCoordinator is considered crashed permanently!", "red");
 
-            if(!this.subordinateLogger.readLog().split(" ")[0].equals("ABORT")){
+            if(!this.logger.readLog().split(" ")[0].equals("ABORT")){
 
-                this.subordinateLogger.log("ABORT", true);
+                this.logger.log("ABORT", true);
 
             }
 
-            this.subordinateLogger.log("END", false);
+            this.logger.log("END", false);
 
             Printer.print("=============== END OF RECOVERY PROCESS =================", "orange");
             Printer.print("=============== UNILATERAL ABORT =================\n", "red");
@@ -247,9 +247,9 @@ public class Subordinate {
                 case "COMMIT":
                 case "ABORT":
 
-                    if (!this.subordinateLogger.readLog().split(" ")[0].equals("ABORT")) {
+                    if (!this.logger.readLog().split(" ")[0].equals("ABORT")) {
 
-                        this.subordinateLogger.log(decisionMsg, true);
+                        this.logger.log(decisionMsg, true);
 
                     }
 
@@ -277,7 +277,7 @@ public class Subordinate {
                             (timeDiff < Coordinator.TIMEOUT_MILLISECS)) {
 
                         this.send("ACK");
-                        this.subordinateLogger.log("END", false);
+                        this.logger.log("END", false);
                         Printer.print("=============== END OF PHASE 2 =================\n", "green");
 
 
