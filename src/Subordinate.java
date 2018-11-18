@@ -77,14 +77,26 @@ public class Subordinate {
 
         Printer.print("=============== START OF PHASE 1 ===============", "blue");
 
-        String prepareMsg = this.receive(true);
-        String phaseOneCoordinatorFailure = this.receive(false);
+
+        boolean messageArrived = false;
+        String prepareMsg = "";
+
+        try {
+
+            prepareMsg = this.receive(true);
+            messageArrived = true;
+
+        } catch (NullPointerException ste) {
+
+            Printer.print("C: [No \"PREPARE\"-message received from coordinator", "white]");
+            Printer.print("\n=============== SUBORDINATE CRASHES =================\n", "red");
+
+        }
 
         // Here, for all further incoming messages, a timeout (defined in Coordinator.java) is set.
         this.coordinatorSocket.setSoTimeout(Coordinator.TIMEOUT_MILLISECS);
 
-        if (prepareMsg.equals("PREPARE") && phaseOneCoordinatorFailure.equals("")){
-
+        if (messageArrived && prepareMsg.equals("PREPARE")){
 
             System.out.print("Please enter the vote ('y' for 'YES'/ 'n' for 'NO') to be sent back to the coordinator within "
                     + Coordinator.TIMEOUT_MILLISECS/1000 + " seconds. ");
@@ -130,10 +142,6 @@ public class Subordinate {
 
                 Printer.print("=============== SUBORDINATE CRASHES =================\n", "red");
 
-                do {
-                    // Here the process waits, such that no NullPointerException results in Coordinator.java:receive()
-                } while (System.currentTimeMillis() - startTime < Coordinator.TIMEOUT_MILLISECS);
-
                 // Terminate the program, even if System.in still blocks in InputHandler
                 System.exit(0);
 
@@ -142,28 +150,13 @@ public class Subordinate {
                 Printer.print("\nNo valid input detected within " + Coordinator.TIMEOUT_MILLISECS / 1000 + " seconds!", "red");
                 Printer.print("=============== SUBORDINATE CRASHES =================\n", "red");
 
-                do {
-                    // Here the process waits, such that no NullPointerException results in Coordinator.java:receive()
-                } while (System.currentTimeMillis() - startTime < Coordinator.TIMEOUT_MILLISECS);
-
                 // Terminate the program, even if System.in still blocks in InputHandler
                 System.exit(0);
 
-
             }
 
-
-        } else if (prepareMsg.equals("PREPARE") && phaseOneCoordinatorFailure.equals("COORDINATOR_FAILURE")) {
-
-            Printer.print("Coordinator crash detected!", "red");
-            this.subordinateLogger.log("ABORT", true);
-            Printer.print("=============== UNILATERAL ABORT =================\n", "red");
-
-        } else {
-
-            throw new IOException("Illegal prepare message received from coordinator: " + prepareMsg);
-
         }
+
     }
 
     private void phaseTwo() throws IOException {
@@ -175,6 +168,7 @@ public class Subordinate {
         int attempts = 0;
         boolean msgArrived = false;
         long startTime = 0;
+        boolean recoveryProcessStarted = false;
 
         while(attempts < 3 && !msgArrived) {
 
@@ -187,6 +181,14 @@ public class Subordinate {
             } catch (SocketTimeoutException ste) {
 
                 Printer.print("\nNo message received from coordinator", "white");
+
+                if (!recoveryProcessStarted) {
+
+                    Printer.print("\n=============== START OF RECOVERY PROCESS ===============", "orange");
+                    recoveryProcessStarted = true;
+
+                }
+
                 int printAttempt = attempts + 2;
                 if(attempts < 2) Printer.print("Starting receive-attempt " + printAttempt + "...\n", "white");
 
@@ -200,9 +202,17 @@ public class Subordinate {
 
                 }
 
-                Printer.print("\nNo message received from coordinator", "white");
+                Printer.print("\nNo message received from coordinator!", "orange");
+
+                if (!recoveryProcessStarted) {
+
+                    Printer.print("\n=============== START OF RECOVERY PROCESS ===============", "orange");
+                    recoveryProcessStarted = true;
+
+                }
+
                 int printAttempt = attempts + 2;
-                if(attempts < 2) Printer.print("Starting receive-attempt " + printAttempt + "...", "white");
+                if(attempts < 2) Printer.print("\nStarting receive-attempt " + printAttempt + "...", "white");
 
                 // Resetting the clock
                 startTime = System.currentTimeMillis();
@@ -217,7 +227,7 @@ public class Subordinate {
 
         if(attempts >= 3) {
 
-            Printer.print("Coordinator crash detected!\n", "red");
+            Printer.print("\nCoordinator is considered crashed permanently!\n", "red");
 
             if(!this.subordinateLogger.readLog().split(" ")[0].equals("ABORT")){
 
@@ -225,6 +235,7 @@ public class Subordinate {
 
             }
 
+            Printer.print("=============== END OF RECOVERY PROCESS =================", "orange");
             Printer.print("=============== UNILATERAL ABORT =================\n", "red");
 
         } else {
@@ -234,7 +245,13 @@ public class Subordinate {
                 case "COMMIT":
                 case "ABORT":
 
-                    System.out.print("Please enter 'y' within " + Coordinator.TIMEOUT_MILLISECS / 1000 + " seconds, for" +
+                    if (!this.subordinateLogger.readLog().split(" ")[0].equals("ABORT")) {
+
+                        this.subordinateLogger.log(decisionMsg, true);
+
+                    }
+
+                    System.out.print("Please press enter within " + Coordinator.TIMEOUT_MILLISECS / 1000 + " seconds, for" +
                             " letting this subordinate acknowledge the coordinator's decision: ");
 
                     InputHandler inputHandler = new InputHandler(new Scanner(System.in));
@@ -254,17 +271,11 @@ public class Subordinate {
                     }
 
                     if (inputPresent &&
-                            inputHandler.getUserInput().toUpperCase().equals("Y") &&
-                            (System.currentTimeMillis() - startTime < Coordinator.TIMEOUT_MILLISECS)) {
-
-
-                        if (!this.subordinateLogger.readLog().split(" ")[0].equals("ABORT")) {
-
-                            this.subordinateLogger.log(decisionMsg, true);
-
-                        }
+                            inputHandler.getUserInput().toUpperCase().equals("") &&
+                            (timeDiff < Coordinator.TIMEOUT_MILLISECS)) {
 
                         this.send("ACK");
+                        this.subordinateLogger.log("END", false);
                         Printer.print("=============== END OF PHASE 2 =================\n", "green");
 
 

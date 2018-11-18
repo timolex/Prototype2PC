@@ -11,7 +11,8 @@ import java.util.Scanner;
 
 public class Coordinator {
 
-    public static final int TIMEOUT_MILLISECS = 6000;
+    //TODO: Think about this value; How long should we wait for Subordinate's answers?
+    public static final int TIMEOUT_MILLISECS = 10000;
 
     private List<Socket> sockets;
     private List<OutputStreamWriter> writers = new ArrayList<>();
@@ -40,7 +41,8 @@ public class Coordinator {
 
     }
 
-    private void broadcast(String msg, boolean verbosely) throws IOException {
+    private void broadcast(String msg) throws IOException {
+
         for (OutputStreamWriter writer : this.writers) {
             writer.write(msg + "\n");
             writer.flush();
@@ -50,20 +52,12 @@ public class Coordinator {
 
             case "":
 
-                if (verbosely) {
-
-                    System.out.println("[No message broadcast to subordinates]\n");
-
-                }
+                System.out.println("[No message broadcast to subordinates]\n");
                 break;
 
             default:
 
-                if (verbosely) {
-
-                    System.out.println("Message broadcast to subordinates: " + "\"" + msg + "\"\n");
-
-                }
+                System.out.println("Message broadcast to subordinates: " + "\"" + msg + "\"\n");
                 break;
 
         }
@@ -115,9 +109,6 @@ public class Coordinator {
 
         }
 
-
-        System.out.println();
-
         return msgs;
 
     }
@@ -130,21 +121,12 @@ public class Coordinator {
         boolean phaseOneSubordinateFailure = false;
         boolean illegalAnswer = false;
 
-        System.out.print("If you wish to let the coordinator fail after broadcasting \"PREPARE\", please enter 'f': ");
+        System.out.print("Please press enter to broadcast \"PREPARE\" to the subordinates: ");
 
-
-        if (scanner.nextLine().toUpperCase().equals("F")) {
-
-            Printer.print("", "");
-            this.broadcast("PREPARE", true);
-            this.broadcast("COORDINATOR_FAILURE", false);
-            Printer.print("=============== COORDINATOR CRASHES =================\n", "red");
-
-        } else {
+        if (scanner.nextLine().toUpperCase().equals(""))  {
 
             Printer.print("", "white");
-            this.broadcast("PREPARE", true);
-            this.broadcast("", false);
+            this.broadcast("PREPARE");
 
             List<String> votes;
             votes = this.receive(this.readers);
@@ -211,6 +193,12 @@ public class Coordinator {
                 throw new IOException("Illegal vote received from a subordinate");
 
             }
+
+        } else {
+
+            Printer.print("", "");
+            Printer.print("=============== COORDINATOR CRASHES =================\n", "red");
+
         }
     }
 
@@ -218,36 +206,47 @@ public class Coordinator {
 
         Printer.print("\n=============== START OF PHASE 2 ===============", "green");
 
-        System.out.print("If you wish to let the coordinator fail at this stage, please enter 'f': ");
+        long startTime = System.currentTimeMillis();
+        long timeDiff = 0;
+        boolean userInputPresent = false;
+        String decisionMessage = decision ? "COMMIT" : "ABORT";
 
-        if (this.scanner.nextLine().toUpperCase().equals("F")) {
+        System.out.print("Please press enter within " + Coordinator.TIMEOUT_MILLISECS/1000 +
+                " to broadcast \"" + decisionMessage + "\" to the subordinates: ");
 
-            this.broadcast("", false);
-            this.broadcast("COORDINATOR_FAILURE", false);
-            Printer.print("=============== COORDINATOR CRASHES =================\n", "red");
+        InputHandler inputHandler = new InputHandler(new Scanner(System.in));
+        inputHandler.start();
 
+        while(!userInputPresent && (timeDiff < Coordinator.TIMEOUT_MILLISECS)) {
 
-        } else {
+            userInputPresent = inputHandler.isInputYetReceived();
+            timeDiff = System.currentTimeMillis() - startTime;
+
+            System.out.print("");
+
+        }
+
+        if (userInputPresent &&
+                inputHandler.getUserInput().toUpperCase().equals("") &&
+                (timeDiff < Coordinator.TIMEOUT_MILLISECS)) {
 
             Printer.print("", "white");
 
-            if (decision) {
-
-                this.broadcast("COMMIT", true);
-                this.broadcast("", false);
-
-            } else {
-
-                this.broadcast("ABORT", true);
-                this.broadcast("", false);
-
-            }
+            this.broadcast(decisionMessage);
 
             List<Integer> allSubordinates = new ArrayList<>();
 
             for (int i = 0; i < this.sockets.size(); i++) allSubordinates.add(i);
 
             this.checkAcknowledgements(allSubordinates);
+
+        } else {
+
+            Printer.print("\n=============== COORDINATOR CRASHES =================\n", "red");
+
+            // Terminate the program, even if System.in still blocks in InputHandler
+            System.exit(0);
+
         }
 
     }
@@ -264,7 +263,6 @@ public class Coordinator {
         }
 
         acknowledgements = this.receive(subordinateReaders);
-
 
         boolean subordinateFailure = false;
         boolean invalidAcknowledgement = false;
@@ -322,6 +320,7 @@ public class Coordinator {
         if (this.loggedDecision.isEmpty()) this.loggedDecision = logger.readLog().split(" ")[0];
 
         boolean decisionMsgPrinted = false;
+        boolean subordinateUnreachable = false;
 
         for (Integer index : crashedSubordinateIndices) {
 
@@ -330,11 +329,22 @@ public class Coordinator {
                 case "COMMIT":
                 case "ABORT":
 
-                    this.send(index, loggedDecision);
-                    if (!decisionMsgPrinted)
-                        Printer.print("Message sent to crashed subordinate(s): " + loggedDecision, "white");
+                    if (!decisionMsgPrinted) Printer.print("Message sent to crashed subordinate(s): " + loggedDecision, "white");
                     decisionMsgPrinted = true;
-                    this.send(index, "");
+
+                    try {
+
+                        this.send(index, loggedDecision);
+
+                    } catch (IOException e) {
+
+                        subordinateUnreachable = true;
+                        Printer.print("\nUnable to reach S" + (index+1) + ", trying again in " +
+                                (TIMEOUT_MILLISECS/1000) + " seconds.", "orange");
+
+                    }
+
+                    //this.send(index, "");
                     break;
 
                 case "":
@@ -342,7 +352,7 @@ public class Coordinator {
                     this.send(index, "ABORT");
                     if (!decisionMsgPrinted) Printer.print("Message sent to crashed subordinate(s): ABORT", "white");
                     decisionMsgPrinted = true;
-                    this.send(index, "");
+                    //this.send(index, "");
                     break;
 
                 default:
@@ -350,6 +360,16 @@ public class Coordinator {
                     throw new IOException("Illegal log entry: " + loggedDecision);
 
             }
+        }
+
+        if(subordinateUnreachable) {
+
+            long startTime = System.currentTimeMillis();
+
+            while((System.currentTimeMillis() - startTime) < TIMEOUT_MILLISECS) {
+                // wait
+            }
+
         }
 
         Printer.print("", "white");
@@ -418,7 +438,6 @@ public class Coordinator {
                 while (subordinateCounter < maxSubordinates) {
 
                     Socket socket = serverSocket.accept();
-                    //TODO: Think about this value; How long should we wait for Subordinate's answers?
                     socket.setSoTimeout(TIMEOUT_MILLISECS);
                     sockets.add(socket);
                     subordinateCounter++;
