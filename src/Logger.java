@@ -35,9 +35,6 @@ public class Logger {
 
         }
 
-        this.bw.write("\n");
-        this.bw.flush();
-
     }
 
     public void log(String msg, boolean forceWrite) throws IOException {
@@ -61,14 +58,12 @@ public class Logger {
 
     public String readLog() {
 
+        if (this.reverseLog.isEmpty()) return "";
         return this.reverseLog.peek();
 
     }
 
     private void finalizeLog() throws IOException {
-
-        this.bw.write("\n");
-        this.bw.flush();
 
         this.bw.close();
 

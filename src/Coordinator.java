@@ -15,6 +15,7 @@ public class Coordinator {
     public static final int TIMEOUT_MILLISECS = 10000;
 
     private List<Socket> sockets;
+    private ServerSocket serverSocket;
     private List<OutputStreamWriter> writers = new ArrayList<>();
     private List<BufferedReader> readers = new ArrayList<>();
     private Scanner scanner;
@@ -23,9 +24,10 @@ public class Coordinator {
     private boolean recoveryProcessStarted;
 
 
-    private Coordinator(List<Socket> sockets) throws IOException {
+    private Coordinator(List<Socket> sockets, ServerSocket serverSocket) throws IOException {
 
         this.sockets = sockets;
+        this.serverSocket = serverSocket;
 
         for (Socket socket : this.sockets) {
 
@@ -212,7 +214,7 @@ public class Coordinator {
         String decisionMessage = decision ? "COMMIT" : "ABORT";
 
         System.out.print("Please press enter within " + Coordinator.TIMEOUT_MILLISECS/1000 +
-                " to broadcast \"" + decisionMessage + "\" to the subordinates: ");
+                " seconds to broadcast \"" + decisionMessage + "\" to the subordinates: ");
 
         InputHandler inputHandler = new InputHandler(new Scanner(System.in));
         inputHandler.start();
@@ -264,7 +266,6 @@ public class Coordinator {
 
         acknowledgements = this.receive(subordinateReaders);
 
-        boolean subordinateFailure = false;
         boolean invalidAcknowledgement = false;
         int count = 0;
         List<Integer> crashedSubordinateIndices = new ArrayList<>();
@@ -273,7 +274,6 @@ public class Coordinator {
 
             if (ack.equals("")) {
 
-                subordinateFailure = true;
                 crashedSubordinateIndices.add(subordinatesToBeChecked.get(count));
 
             } else if (!ack.equals("ACK") && !ack.equals("")) {
@@ -286,7 +286,7 @@ public class Coordinator {
 
         }
 
-        if (subordinateFailure && !invalidAcknowledgement) {
+        if (crashedSubordinateIndices.size() > 0 && !invalidAcknowledgement) {
 
             Printer.print("\nSubordinate crash(es) detected!\n", "red");
 
@@ -321,7 +321,9 @@ public class Coordinator {
         if (this.loggedDecision.isEmpty()) this.loggedDecision = logger.readLog().split(" ")[0];
 
         boolean decisionMsgPrinted = false;
-        boolean subordinateUnreachable = false;
+        List<Integer> unreachableSubordinates = new ArrayList<>();
+        List<Integer> reachableSubordinates = new ArrayList<>();
+
 
         for (Integer index : crashedSubordinateIndices) {
 
@@ -336,24 +338,33 @@ public class Coordinator {
                     try {
 
                         this.send(index, loggedDecision);
+                        reachableSubordinates.add(index);
 
                     } catch (IOException e) {
 
-                        subordinateUnreachable = true;
-                        Printer.print("\nUnable to reach S" + (index+1) + ", trying again in " +
-                                (TIMEOUT_MILLISECS/1000) + " seconds.", "orange");
+                        unreachableSubordinates.add(index);
+                        Printer.print("Unable to reach S" + (index+1) + " waiting for it to reconnect...", "orange");
 
                     }
 
-                    //this.send(index, "");
                     break;
 
                 case "":
 
-                    this.send(index, "ABORT");
-                    if (!decisionMsgPrinted) Printer.print("Message sent to crashed subordinate(s): ABORT", "white");
+                    if (!decisionMsgPrinted) Printer.print("Message sent to crashed subordinate(s): " + loggedDecision, "white");
                     decisionMsgPrinted = true;
-                    //this.send(index, "");
+
+                    try {
+
+                        this.send(index, loggedDecision);
+
+                    } catch (IOException e) {
+
+                        unreachableSubordinates.add(index);
+                        Printer.print("Unable to reach S" + (index+1) + " waiting for it to reconnect...", "orange");
+
+                    }
+
                     break;
 
                 default:
@@ -363,7 +374,7 @@ public class Coordinator {
             }
         }
 
-        if(subordinateUnreachable) {
+        if(unreachableSubordinates.size() > 0) {
 
             long startTime = System.currentTimeMillis();
 
@@ -371,10 +382,35 @@ public class Coordinator {
                 // wait
             }
 
+            int numberOfReconnectedSubordinates = 0;
+
+            while (numberOfReconnectedSubordinates < unreachableSubordinates.size()) {
+
+                int nextSocketToReplace = unreachableSubordinates.get(numberOfReconnectedSubordinates);
+
+                Socket socket = this.serverSocket.accept();
+
+                this.sockets.set(nextSocketToReplace, socket);
+                this.readers.set(nextSocketToReplace, new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8)));
+                this.writers.set(nextSocketToReplace, new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8));
+
+                ++numberOfReconnectedSubordinates;
+
+            }
+
+            for (int i = 0; i < unreachableSubordinates.size(); i++) {
+
+                this.sockets.get(unreachableSubordinates.get(i)).setSoTimeout(TIMEOUT_MILLISECS);
+
+            }
+
+            this.recoveryProcess(unreachableSubordinates);
+
         }
 
         Printer.print("", "white");
-        this.checkAcknowledgements(crashedSubordinateIndices);
+
+        if(reachableSubordinates.size() > 0) this.checkAcknowledgements(reachableSubordinates);
 
     }
 
@@ -442,13 +478,13 @@ public class Coordinator {
                     socket.setSoTimeout(TIMEOUT_MILLISECS);
                     sockets.add(socket);
                     subordinateCounter++;
-                    System.out.println("Added socket for subordinate " + "S" + subordinateCounter + " @ port " + socket.getPort() + ".");
+                    System.out.println("Added socket for subordinate " + "S" + subordinateCounter + ".");
 
                 }
 
                 System.out.println("\n");
 
-                Coordinator coordinator = new Coordinator(sockets);
+                Coordinator coordinator = new Coordinator(sockets, serverSocket);
                 coordinator.phaseOne();
 
             } finally {

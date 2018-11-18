@@ -69,7 +69,18 @@ public class Subordinate {
 
         System.out.println("\nMy coordinator (C) is @ port " + this.getCoordinatorSocket().getPort() + "\n\n");
 
-        this.phaseOne();
+        String loggedDecision = this.logger.readLog().split(" ")[0];
+
+        if(loggedDecision.equals("ABORT") || loggedDecision.equals("PREPARED") || loggedDecision.equals("COMMIT")) {
+
+            //TODO: Handle the case, in which the subordinate crashed after force-writing PREPARE and before receiving the decision.
+            this.resurrect(loggedDecision);
+
+        } else {
+
+            this.phaseOne();
+
+        }
 
     }
 
@@ -247,48 +258,14 @@ public class Subordinate {
                 case "COMMIT":
                 case "ABORT":
 
-                    if (!this.logger.readLog().split(" ")[0].equals("ABORT")) {
+                    if (!this.logger.readLog().split(" ")[0].equals("ABORT") &&
+                        !this.logger.readLog().split(" ")[0].equals("COMMIT")) {
 
                         this.logger.log(decisionMsg, true);
 
                     }
 
-                    System.out.print("Please press enter within " + Coordinator.TIMEOUT_MILLISECS / 1000 + " seconds, for" +
-                            " letting this subordinate acknowledge the coordinator's decision: ");
-
-                    InputHandler inputHandler = new InputHandler(new Scanner(System.in));
-                    inputHandler.start();
-                    boolean inputPresent = false;
-
-                    startTime = System.currentTimeMillis();
-                    long timeDiff = 0;
-
-                    while (!inputPresent && (timeDiff < Coordinator.TIMEOUT_MILLISECS)) {
-
-                        inputPresent = inputHandler.isInputYetReceived();
-                        timeDiff = System.currentTimeMillis() - startTime;
-
-                        System.out.print("");
-
-                    }
-
-                    if (inputPresent &&
-                            inputHandler.getUserInput().toUpperCase().equals("") &&
-                            (timeDiff < Coordinator.TIMEOUT_MILLISECS)) {
-
-                        this.send("ACK");
-                        this.logger.log("END", false);
-                        Printer.print("=============== END OF PHASE 2 =================\n", "green");
-
-
-                    } else {
-
-                        Printer.print("\nNot acknowledged within " + Coordinator.TIMEOUT_MILLISECS / 1000 + " seconds!", "red");
-                        Printer.print("=============== SUBORDINATE CRASHES =================\n", "red");
-
-                        // Terminate the program, even if System.in still blocks in InputHandler
-                        System.exit(0);
-                    }
+                    this.sendAck();
 
                     break;
 
@@ -301,9 +278,52 @@ public class Subordinate {
 
     }
 
-    private void resurrect() throws IOException {
+    private void sendAck() throws IOException {
+
+        System.out.print("Please press enter within " + Coordinator.TIMEOUT_MILLISECS / 1000 + " seconds, for" +
+                " letting this subordinate acknowledge the coordinator's decision: ");
+
+        InputHandler inputHandler = new InputHandler(new Scanner(System.in));
+        inputHandler.start();
+        boolean inputPresent = false;
+
+        long startTime = System.currentTimeMillis();
+        long timeDiff = 0;
+
+        while (!inputPresent && (timeDiff < Coordinator.TIMEOUT_MILLISECS)) {
+
+            inputPresent = inputHandler.isInputYetReceived();
+            timeDiff = System.currentTimeMillis() - startTime;
+
+            System.out.print("");
+
+        }
+
+        if (inputPresent &&
+                inputHandler.getUserInput().toUpperCase().equals("") &&
+                (timeDiff < Coordinator.TIMEOUT_MILLISECS)) {
+
+            this.send("ACK");
+            this.logger.log("END", false);
+            Printer.print("=============== END OF PHASE 2 =================\n", "green");
+
+
+        } else {
+
+            Printer.print("\nNot acknowledged within " + Coordinator.TIMEOUT_MILLISECS / 1000 + " seconds!", "red");
+            Printer.print("=============== SUBORDINATE CRASHES =================\n", "red");
+
+            // Terminate the program, even if System.in still blocks in InputHandler
+            System.exit(0);
+        }
+
+    }
+
+    private void resurrect(String loggedDecision) throws IOException {
 
         Printer.print("=============== SUBORDINATE RESURRECTS =================\n", "red");
+        Printer.print("Coordinator-log reads: \"" + loggedDecision + "\"", "white");
+        Printer.print("Re-entering phase 2...\n", "green");
 
         this.phaseTwo();
     }
