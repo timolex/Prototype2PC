@@ -19,31 +19,25 @@ public class Coordinator {
     private List<OutputStreamWriter> writers = new ArrayList<>();
     private List<BufferedReader> readers = new ArrayList<>();
     private Scanner scanner;
-    private Logger logger;
+    private Logger coordinatorLogger;
     private Logger socketLogger;
+    private int maxSubordinates;
     private String loggedDecision;
     private boolean recoveryProcessStarted;
 
 
-    private Coordinator(List<Socket> sockets, ServerSocket serverSocket) throws IOException {
+    private Coordinator(int maxSubordinates) throws IOException {
 
-        this.sockets = sockets;
-        this.serverSocket = serverSocket;
+        this.sockets = new ArrayList<>();
+        this.serverSocket = new ServerSocket(8080);
 
         this.scanner = new Scanner(System.in);
-        this.logger = new Logger("/tmp/CoordinatorLog.txt", "Coordinator", true);
+        this.coordinatorLogger = new Logger("/tmp/CoordinatorLog.txt", "Coordinator", true);
         this.socketLogger = new Logger("/tmp/SubordinatePorts.txt", "Coordinator",true);
+
+        this.maxSubordinates = maxSubordinates;
         this.loggedDecision = "";
         this.recoveryProcessStarted = false;
-
-
-        for (Socket socket : this.sockets) {
-
-            this.writers.add(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8));
-            this.readers.add(new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8)));
-            this.socketLogger.log(Integer.toString(socket.getPort()), false, false, false);
-
-        }
 
     }
 
@@ -119,86 +113,92 @@ public class Coordinator {
 
     }
 
+    private void initiate() throws IOException {
+
+        try {
+
+            if(this.coordinatorLogger.readLogBottom().split(" ")[0].equals("COMMIT") ||
+                    this.coordinatorLogger.readLogBottom().split(" ")[0].equals("ABORT")) {
+
+                Printer.print("=============== COORDINATOR RESURRECTS =================\n", "red");
+
+                Printer.print("\nWaiting for " + maxSubordinates + " subordinates to re-connect...\n", "white");
+
+                List<String> subordinatePorts = this.socketLogger.getLog();
+
+                if(subordinatePorts.size() != maxSubordinates) {
+
+                    throw new IOException("Illegal SubordinatePorts-log detected, size: " + subordinatePorts.size());
+
+                }
+
+                int subordinateCounter = 0;
+
+                for (String port : subordinatePorts) {
+
+                    Printer.print("read " + port, "blue");
+
+                    //TODO: This does not seem to work... Possible solution: Reopen a ServerSocket and have the Subordinates connect to it
+                    Socket socket = new Socket("localhost", Integer.parseInt(port));
+                    this.sockets.add(socket);
+                    socket.setSoTimeout(TIMEOUT_MILLISECS);
+                    this.writers.add(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8));
+                    this.readers.add(new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8)));
+                    this.socketLogger.log(Integer.toString(socket.getPort()), false, false, false);
+                    subordinateCounter++;
+                    System.out.println("Added socket for subordinate " + "S" + subordinateCounter + ".");
+
+                }
+
+                this.checkVotes();
+
+            } else {
+
+                Printer.print("\nWaiting for " + maxSubordinates + " subordinates to connect...\n", "white");
+
+
+                int subordinateCounter = 0;
+
+                while (subordinateCounter < this.maxSubordinates) {
+
+                    Socket socket = this.serverSocket.accept();
+                    this.sockets.add(socket);
+                    socket.setSoTimeout(TIMEOUT_MILLISECS);
+                    this.writers.add(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8));
+                    this.readers.add(new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8)));
+                    this.socketLogger.log(Integer.toString(socket.getPort()), false, false, false);
+                    subordinateCounter++;
+                    System.out.println("Added socket for subordinate " + "S" + subordinateCounter + ".");
+
+                }
+
+                System.out.println("\n");
+
+                this.phaseOne();
+
+            }
+
+        } finally {
+
+            this.serverSocket.close();
+
+            for (Socket socket : sockets) {
+                socket.close();
+            }
+
+        }
+
+    }
+
     private void phaseOne() throws IOException {
 
         Printer.print("=============== START OF PHASE 1 ===============", "blue");
-
-        boolean decision = true;
-        boolean phaseOneSubordinateFailure = false;
-        boolean illegalAnswer = false;
 
         System.out.print("Please press enter to broadcast \"PREPARE\" to the subordinates: ");
 
         if (scanner.nextLine().toUpperCase().equals(""))  {
 
-            Printer.print("", "white");
-            this.broadcast("PREPARE");
-
-            List<String> votes;
-            votes = this.receive(this.readers);
-            List<Integer> socketsToRemove = new ArrayList<>();
-            int i = 0;
-
-            for (String msg : votes) {
-
-                if (msg.equals("N")) decision = false;
-
-                if (msg.equals("")) {
-
-                    socketsToRemove.add(i);
-
-                    decision = false;
-                    phaseOneSubordinateFailure = true;
-
-                } else if (!msg.equals("Y") && !msg.equals("N") && !msg.equals("")) {
-
-                    illegalAnswer = true;
-
-                }
-
-                i++;
-
-            }
-
-            this.removeSockets(socketsToRemove);
-
-            if (!illegalAnswer) {
-
-                if (phaseOneSubordinateFailure)
-                    System.out.println("Phase 1 decision: ABORT (one or more subordinates did" +
-                            " not vote)");
-
-                if (decision) System.out.println("Phase 1 decision: COMMIT (all subordinates answered w/ 'YES' VOTES)");
-
-                if (!decision && !phaseOneSubordinateFailure)
-                    System.out.println("Phase 1 decision: ABORT (one or more " +
-                            "subordinates answered w/ 'NO' VOTES)");
-
-                if (decision) {
-
-                    logger.log("COMMIT", true, true, true);
-
-                } else {
-
-                    logger.log("ABORT", true, true, true);
-
-                }
-
-                Printer.print("=============== END OF PHASE 1 =================\n", "blue");
-
-                if (this.sockets.size() > 0) this.phaseTwo(decision);
-
-            } else {
-
-                for (Socket socket : this.sockets) {
-
-                    socket.close();
-
-                }
-
-                throw new IOException("Illegal vote received from a subordinate");
-
-            }
+            this.checkVotes();
 
         } else {
 
@@ -206,6 +206,84 @@ public class Coordinator {
             Printer.print("=============== COORDINATOR CRASHES =================\n", "red");
 
         }
+    }
+
+    private void checkVotes() throws IOException {
+
+        boolean decision = true;
+        boolean phaseOneSubordinateFailure = false;
+        boolean illegalAnswer = false;
+
+        Printer.print("", "white");
+        this.broadcast("PREPARE");
+
+        List<String> votes;
+        votes = this.receive(this.readers);
+        List<Integer> socketsToRemove = new ArrayList<>();
+        int i = 0;
+
+        for (String msg : votes) {
+
+            if (msg.equals("N")) decision = false;
+
+            if (msg.equals("")) {
+
+                socketsToRemove.add(i);
+
+                decision = false;
+                phaseOneSubordinateFailure = true;
+
+            } else if (!msg.equals("Y") && !msg.equals("N") && !msg.equals("")) {
+
+                illegalAnswer = true;
+
+            }
+
+            i++;
+
+        }
+
+        this.removeSockets(socketsToRemove);
+
+        if (!illegalAnswer) {
+
+            if (phaseOneSubordinateFailure)
+                System.out.println("Phase 1 decision: ABORT (one or more subordinates did" +
+                        " not vote)");
+
+            if (decision) System.out.println("Phase 1 decision: COMMIT (all subordinates answered w/ 'YES' VOTES)");
+
+            if (!decision && !phaseOneSubordinateFailure)
+                System.out.println("Phase 1 decision: ABORT (one or more " +
+                        "subordinates answered w/ 'NO' VOTES)");
+
+            if (decision) {
+
+                coordinatorLogger.log("COMMIT", true, true, true);
+
+            } else {
+
+                coordinatorLogger.log("ABORT", true, true, true);
+
+            }
+
+            Printer.print("=============== END OF PHASE 1 =================\n", "blue");
+
+            if (this.sockets.size() > 0) this.phaseTwo(decision);
+
+        } else {
+
+            //TODO: Check, if we really need this anymore...
+            for (Socket socket : this.sockets) {
+
+                socket.close();
+
+            }
+
+            throw new IOException("Illegal vote received from a subordinate");
+
+        }
+
     }
 
     private void phaseTwo(boolean decision) throws IOException {
@@ -247,6 +325,12 @@ public class Coordinator {
             this.checkAcknowledgements(allSubordinates);
 
         } else {
+
+            for (Socket socket : this.sockets) {
+
+                socket.close();
+
+            }
 
             Printer.print("\n=============== COORDINATOR CRASHES =================\n", "red");
 
@@ -304,7 +388,7 @@ public class Coordinator {
 
         } else {
 
-            this.logger.log("END", false, true, true);
+            this.coordinatorLogger.log("END", false, true, true);
             this.socketLogger.emptyLog();
 
             if (this.recoveryProcessStarted)
@@ -330,7 +414,7 @@ public class Coordinator {
          */
         this.reAcceptCrashedSubordinates(crashedSubordinateIndices);
 
-        if (this.loggedDecision.isEmpty()) this.loggedDecision = logger.readLog().split(" ")[0];
+        if (this.loggedDecision.isEmpty()) this.loggedDecision = coordinatorLogger.readLogBottom().split(" ")[0];
 
         boolean decisionMsgPrinted = false;
         List<Integer> unreachableSubordinatesIndices = new ArrayList<>();
@@ -463,40 +547,14 @@ public class Coordinator {
 
         if ((args.length == 2) && (args[0].equals("-S")) && (Integer.parseInt(args[1]) > 0)) {
 
-            int subordinateCounter = 0;
             int maxSubordinates = Integer.parseInt(args[1]);
 
-            ServerSocket serverSocket = new ServerSocket(8080);
-            List<Socket> sockets = new ArrayList<>(maxSubordinates);
 
-            try {
+            //TODO: Move subordinate accepting to initiate() method
 
-                System.out.println("\nCoordinator-socket established, waiting for " + maxSubordinates + " subordinates to connect...\n");
+            Coordinator coordinator = new Coordinator(maxSubordinates);
+            coordinator.initiate();
 
-                while (subordinateCounter < maxSubordinates) {
-
-                    Socket socket = serverSocket.accept();
-                    socket.setSoTimeout(TIMEOUT_MILLISECS);
-                    sockets.add(socket);
-                    subordinateCounter++;
-                    System.out.println("Added socket for subordinate " + "S" + subordinateCounter + ".");
-
-                }
-
-                System.out.println("\n");
-
-                Coordinator coordinator = new Coordinator(sockets, serverSocket);
-                coordinator.phaseOne();
-
-            } finally {
-
-                serverSocket.close();
-
-                for (Socket socket : sockets) {
-                    socket.close();
-                }
-
-            }
 
         } else {
 

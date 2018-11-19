@@ -1,6 +1,8 @@
 import java.io.*;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.Stack;
 
 public class Logger {
@@ -68,10 +70,16 @@ public class Logger {
 
     }
 
-    public String readLog() {
+    public String readLogBottom() {
 
         if (this.reverseLog.isEmpty()) return "";
         return this.reverseLog.peek();
+
+    }
+
+    public List<String> getLog() throws IOException {
+
+        return (new ArrayList<>(reverseLog));
 
     }
 
