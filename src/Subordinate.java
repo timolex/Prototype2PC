@@ -132,7 +132,7 @@ public class Subordinate {
                     inputHandler.getUserInput().toUpperCase().equals("Y") &&
                     ((System.currentTimeMillis() - startTime) < Coordinator.TIMEOUT_MILLISECS))  {
 
-                this.logger.log("PREPARED", true);
+                this.logger.log("PREPARED", true, true, true);
                 this.send("Y");
                 Printer.print("=============== END OF PHASE 1 =================\n", "blue");
                 this.phaseTwo();
@@ -141,7 +141,7 @@ public class Subordinate {
                     inputHandler.getUserInput().toUpperCase().equals("N") &&
                     ((System.currentTimeMillis() - startTime) < Coordinator.TIMEOUT_MILLISECS)) {
 
-                this.logger.log("ABORT", true);
+                this.logger.log("ABORT", true, true, true);
                 this.send("N");
                 Printer.print("=============== END OF PHASE 1 =================\n", "blue");
                 this.phaseTwo();
@@ -242,11 +242,11 @@ public class Subordinate {
 
             if(!this.logger.readLog().split(" ")[0].equals("ABORT")){
 
-                this.logger.log("ABORT", true);
+                this.logger.log("ABORT", true, true, true);
 
             }
 
-            this.logger.log("END", false);
+            this.logger.log("END", false, true, true);
 
             Printer.print("=============== END OF RECOVERY PROCESS =================", "orange");
             Printer.print("=============== UNILATERAL ABORT =================\n", "red");
@@ -261,7 +261,7 @@ public class Subordinate {
                     if (!this.logger.readLog().split(" ")[0].equals("ABORT") &&
                         !this.logger.readLog().split(" ")[0].equals("COMMIT")) {
 
-                        this.logger.log(decisionMsg, true);
+                        this.logger.log(decisionMsg, true, true, true);
 
                     }
 
@@ -304,7 +304,7 @@ public class Subordinate {
                 (timeDiff < Coordinator.TIMEOUT_MILLISECS)) {
 
             this.send("ACK");
-            this.logger.log("END", false);
+            this.logger.log("END", false, true, true);
             Printer.print("=============== END OF PHASE 2 =================\n", "green");
 
 

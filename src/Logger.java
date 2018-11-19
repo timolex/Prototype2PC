@@ -5,16 +5,20 @@ import java.util.Stack;
 
 public class Logger {
 
+    private String filename;
+    private String nodeType;
+    private File logFile;
     private BufferedReader br;
     private BufferedWriter bw;
     private SimpleDateFormat dateFormat = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss");
-    private String nodeType;
     private Stack<String> reverseLog = new Stack<>();
 
 
     public Logger(String filename, String nodeType, boolean append) throws IOException {
 
-        File logFile = new File(filename);
+        this.filename = filename;
+        this.nodeType = nodeType;
+        this.logFile = new File(this.filename);
 
         if(!logFile.exists()) {
             logFile.createNewFile();
@@ -25,7 +29,6 @@ public class Logger {
 
         this.br = new BufferedReader(fr);
         this.bw = new BufferedWriter(fw);
-        this.nodeType = nodeType;
 
         String line;
 
@@ -37,19 +40,28 @@ public class Logger {
 
     }
 
-    public void log(String msg, boolean forceWrite) throws IOException {
-        String timeStamp  = dateFormat.format(new Date());
-        String newLogEntry = msg + " " + timeStamp + "\n";
+    public void log(String msg, boolean forceWrite, boolean appendDate, boolean verbose) throws IOException {
+        String newLogEntry;
+
+        if(appendDate) {
+            String timeStamp  = dateFormat.format(new Date());
+            newLogEntry = msg + " " + timeStamp + "\n";
+        } else {
+            newLogEntry = msg + "\n";
+        }
+
 
         this.bw.write(newLogEntry);
         this.bw.flush();
 
         this.reverseLog.push(newLogEntry);
 
-        if(forceWrite){
-            System.out.println("\n" + this.nodeType +" force-writes: \"" + msg + "\"");
-        } else {
-            System.out.println("\n" + this.nodeType +" writes: \"" + msg + "\"");
+        if (verbose) {
+            if (forceWrite) {
+                System.out.println("\n" + this.nodeType + " force-writes: \"" + msg + "\"");
+            } else {
+                System.out.println("\n" + this.nodeType + " writes: \"" + msg + "\"");
+            }
         }
 
         if(msg.equals("END")) finalizeLog();
@@ -66,6 +78,17 @@ public class Logger {
     private void finalizeLog() throws IOException {
 
         this.bw.close();
+
+    }
+
+    public void emptyLog() throws IOException {
+
+        FileWriter fw = new FileWriter(this.logFile, false);
+        BufferedWriter bw = new BufferedWriter(fw);
+
+        bw.write("");
+        bw.flush();
+        bw.close();
 
     }
 }

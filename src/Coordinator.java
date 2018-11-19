@@ -20,6 +20,7 @@ public class Coordinator {
     private List<BufferedReader> readers = new ArrayList<>();
     private Scanner scanner;
     private Logger logger;
+    private Logger socketLogger;
     private String loggedDecision;
     private boolean recoveryProcessStarted;
 
@@ -29,17 +30,20 @@ public class Coordinator {
         this.sockets = sockets;
         this.serverSocket = serverSocket;
 
+        this.scanner = new Scanner(System.in);
+        this.logger = new Logger("/tmp/CoordinatorLog.txt", "Coordinator", true);
+        this.socketLogger = new Logger("/tmp/SubordinatePorts.txt", "Coordinator",true);
+        this.loggedDecision = "";
+        this.recoveryProcessStarted = false;
+
+
         for (Socket socket : this.sockets) {
 
             this.writers.add(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8));
             this.readers.add(new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8)));
+            this.socketLogger.log(Integer.toString(socket.getPort()), false, false, false);
 
         }
-
-        this.scanner = new Scanner(System.in);
-        this.logger = new Logger("/tmp/CoordinatorLog.txt", "Coordinator", true);
-        this.loggedDecision = "";
-        this.recoveryProcessStarted = false;
 
     }
 
@@ -172,11 +176,11 @@ public class Coordinator {
 
                 if (decision) {
 
-                    logger.log("COMMIT", true);
+                    logger.log("COMMIT", true, true, true);
 
                 } else {
 
-                    logger.log("ABORT", true);
+                    logger.log("ABORT", true, true, true);
 
                 }
 
@@ -300,7 +304,8 @@ public class Coordinator {
 
         } else {
 
-            this.logger.log("END", false);
+            this.logger.log("END", false, true, true);
+            this.socketLogger.emptyLog();
 
             if (this.recoveryProcessStarted)
                 Printer.print("=============== END OF RECOVERY PROCESS =================\n", "orange");
