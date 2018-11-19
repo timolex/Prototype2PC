@@ -318,6 +318,8 @@ public class Coordinator {
 
         this.recoveryProcessStarted = true;
 
+        this.reAcceptCrashedSubordinates(crashedSubordinateIndices);
+
         if (this.loggedDecision.isEmpty()) this.loggedDecision = logger.readLog().split(" ")[0];
 
         boolean decisionMsgPrinted = false;
@@ -335,35 +337,12 @@ public class Coordinator {
                     if (!decisionMsgPrinted) Printer.print("Message sent to crashed subordinate(s): " + loggedDecision, "white");
                     decisionMsgPrinted = true;
 
-                    try {
-
-                        this.send(index, loggedDecision);
-                        reachableSubordinates.add(index);
-
-                    } catch (IOException e) {
-
-                        unreachableSubordinates.add(index);
-                        Printer.print("Unable to reach S" + (index+1) + " waiting for it to reconnect...", "orange");
-
-                    }
-
                     break;
 
                 case "":
 
-                    if (!decisionMsgPrinted) Printer.print("Message sent to crashed subordinate(s): " + loggedDecision, "white");
+                    if (!decisionMsgPrinted) Printer.print("Message sent to crashed subordinate(s): ABORT", "white");
                     decisionMsgPrinted = true;
-
-                    try {
-
-                        this.send(index, loggedDecision);
-
-                    } catch (IOException e) {
-
-                        unreachableSubordinates.add(index);
-                        Printer.print("Unable to reach S" + (index+1) + " waiting for it to reconnect...", "orange");
-
-                    }
 
                     break;
 
@@ -372,37 +351,31 @@ public class Coordinator {
                     throw new IOException("Illegal log entry: " + loggedDecision);
 
             }
+
+            try {
+
+                this.send(index, loggedDecision);
+                reachableSubordinates.add(index);
+
+            } catch (IOException e) {
+
+                unreachableSubordinates.add(index);
+                Printer.print("Unable to reach S" + (index+1) + " waiting for it to reconnect...", "orange");
+
+            }
         }
 
+
+        // TODO: Move this to the top of this method (@ every beginning of the recovery process, the coord has to accept reconnecting subordinates.
         if(unreachableSubordinates.size() > 0) {
 
-            long startTime = System.currentTimeMillis();
+/*            long startTime = System.currentTimeMillis();
 
             while((System.currentTimeMillis() - startTime) < TIMEOUT_MILLISECS) {
                 // wait
-            }
+            }*/
 
-            int numberOfReconnectedSubordinates = 0;
 
-            while (numberOfReconnectedSubordinates < unreachableSubordinates.size()) {
-
-                int nextSocketToReplace = unreachableSubordinates.get(numberOfReconnectedSubordinates);
-
-                Socket socket = this.serverSocket.accept();
-
-                this.sockets.set(nextSocketToReplace, socket);
-                this.readers.set(nextSocketToReplace, new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8)));
-                this.writers.set(nextSocketToReplace, new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8));
-
-                ++numberOfReconnectedSubordinates;
-
-            }
-
-            for (int i = 0; i < unreachableSubordinates.size(); i++) {
-
-                this.sockets.get(unreachableSubordinates.get(i)).setSoTimeout(TIMEOUT_MILLISECS);
-
-            }
 
             this.recoveryProcess(unreachableSubordinates);
 
@@ -411,6 +384,32 @@ public class Coordinator {
         Printer.print("", "white");
 
         if(reachableSubordinates.size() > 0) this.checkAcknowledgements(reachableSubordinates);
+
+    }
+
+    private void reAcceptCrashedSubordinates(List<Integer> crashedSubordinateIndices) throws IOException {
+
+        int numberOfReconnectedSubordinates = 0;
+
+        while (numberOfReconnectedSubordinates < crashedSubordinateIndices.size()) {
+
+            int nextSocketToReplaceIndex = crashedSubordinateIndices.get(numberOfReconnectedSubordinates);
+
+            Socket socket = this.serverSocket.accept();
+
+            this.sockets.set(nextSocketToReplaceIndex, socket);
+            this.readers.set(nextSocketToReplaceIndex, new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8)));
+            this.writers.set(nextSocketToReplaceIndex, new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8));
+
+            ++numberOfReconnectedSubordinates;
+
+        }
+
+        for (int i = 0; i < crashedSubordinateIndices.size(); i++) {
+
+            this.sockets.get(crashedSubordinateIndices.get(i)).setSoTimeout(TIMEOUT_MILLISECS);
+
+        }
 
     }
 
