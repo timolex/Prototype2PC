@@ -3,6 +3,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.Socket;
+import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.nio.charset.StandardCharsets;
 import java.util.Scanner;
@@ -176,6 +177,7 @@ public class Subordinate {
         Printer.print("Waiting for the coordinator's decision message...", "white");
 
         String decisionMsg = "";
+        String loggedVote = this.logger.readLog().split(" ")[0];
         int attempts = 0;
         boolean msgArrived = false;
         long startTime = 0;
@@ -185,6 +187,23 @@ public class Subordinate {
 
             try {
 
+                if(!(loggedVote.equals("PREPARED") || loggedVote.equals("ABORT"))) {
+
+                    throw new IOException("Illegal logged vote read: "+ loggedVote);
+
+                } else if (attempts > 0) {
+
+                    if(loggedVote.equals("PREPARED")) {
+
+                        this.send("Y");
+
+                    } else {
+
+                        this.send("N");
+
+                    }
+
+                }
                 startTime = System.currentTimeMillis();
                 decisionMsg = this.receive(true);
                 msgArrived = true;
@@ -201,11 +220,11 @@ public class Subordinate {
                 }
 
                 int printAttempt = attempts + 2;
-                if(attempts < 2) Printer.print("Starting receive-attempt " + printAttempt + "...\n", "white");
+                if(attempts < 2) Printer.print("\nStarting attempt " + printAttempt + "...", "white");
 
                 ++attempts;
 
-            } catch (NullPointerException ne) {
+            } catch (NullPointerException | SocketException e) {
 
                 while((System.currentTimeMillis() - startTime) < Coordinator.TIMEOUT_MILLISECS) {
 
@@ -223,7 +242,7 @@ public class Subordinate {
                 }
 
                 int printAttempt = attempts + 2;
-                if(attempts < 2) Printer.print("\nStarting receive-attempt " + printAttempt + "...", "white");
+                if(attempts < 2) Printer.print("\nStarting attempt " + printAttempt + "...", "white");
 
                 // Resetting the clock
                 startTime = System.currentTimeMillis();
