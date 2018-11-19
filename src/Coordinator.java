@@ -318,13 +318,17 @@ public class Coordinator {
 
         this.recoveryProcessStarted = true;
 
+        /*TODO: Time out at reAccept-method, if not all crashed subordinates reconnected. -> Return these, which did not
+                reconnect and add them straight to the unreachableSubordinateIndices list and also remove them from
+                the crashedSubordinateIndices list!!!
+         */
         this.reAcceptCrashedSubordinates(crashedSubordinateIndices);
 
         if (this.loggedDecision.isEmpty()) this.loggedDecision = logger.readLog().split(" ")[0];
 
         boolean decisionMsgPrinted = false;
-        List<Integer> unreachableSubordinates = new ArrayList<>();
-        List<Integer> reachableSubordinates = new ArrayList<>();
+        List<Integer> unreachableSubordinatesIndices = new ArrayList<>();
+        List<Integer> reachableSubordinatesIndices = new ArrayList<>();
 
 
         for (Integer index : crashedSubordinateIndices) {
@@ -355,35 +359,22 @@ public class Coordinator {
             try {
 
                 this.send(index, loggedDecision);
-                reachableSubordinates.add(index);
+                reachableSubordinatesIndices.add(index);
 
             } catch (IOException e) {
 
-                unreachableSubordinates.add(index);
+                unreachableSubordinatesIndices.add(index);
                 Printer.print("Unable to reach S" + (index+1) + " waiting for it to reconnect...", "orange");
 
             }
         }
 
 
-        // TODO: Move this to the top of this method (@ every beginning of the recovery process, the coord has to accept reconnecting subordinates.
-        if(unreachableSubordinates.size() > 0) {
-
-/*            long startTime = System.currentTimeMillis();
-
-            while((System.currentTimeMillis() - startTime) < TIMEOUT_MILLISECS) {
-                // wait
-            }*/
-
-
-
-            this.recoveryProcess(unreachableSubordinates);
-
-        }
+        if(unreachableSubordinatesIndices.size() > 0) this.recoveryProcess(unreachableSubordinatesIndices);
 
         Printer.print("", "white");
 
-        if(reachableSubordinates.size() > 0) this.checkAcknowledgements(reachableSubordinates);
+        if(reachableSubordinatesIndices.size() > 0) this.checkAcknowledgements(reachableSubordinatesIndices);
 
     }
 
