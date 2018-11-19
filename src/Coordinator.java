@@ -318,6 +318,7 @@ public class Coordinator {
 
         this.recoveryProcessStarted = true;
 
+        //Is this necessary?
         /*TODO: Time out at reAccept-method, if not all crashed subordinates reconnected. -> Return these, which did not
                 reconnect and add them straight to the unreachableSubordinateIndices list and also remove them from
                 the crashedSubordinateIndices list!!!
@@ -379,6 +380,11 @@ public class Coordinator {
     }
 
     private void reAcceptCrashedSubordinates(List<Integer> crashedSubordinateIndices) throws IOException {
+
+        //TODO: Think about this assumption: The subordinates have to reconnect in their order of index,
+        // such that the coordinator knows, which subordinate is acknowledging.
+        // Solution to that: Send the subordinate index to coordinator during resurrection (make this
+        // method threaded. -> Is this overkill?
 
         int numberOfReconnectedSubordinates = 0;
 
