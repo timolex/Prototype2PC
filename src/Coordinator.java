@@ -12,7 +12,10 @@ import java.util.Scanner;
 public class Coordinator {
 
     //TODO: Think about this value; How long should we wait for Subordinate's answers?
-    public static final int TIMEOUT_MILLISECS = 10000;
+    public static final int TIMEOUT_MILLIS = 10000;
+    public static final int SERVER_SOCKET_PORT = 8080;
+    public static final String SERVER_SOCKET_HOST = "localhost";
+
 
     private List<Socket> sockets;
     private ServerSocket serverSocket;
@@ -29,7 +32,7 @@ public class Coordinator {
     private Coordinator(int maxSubordinates) throws IOException {
 
         this.sockets = new ArrayList<>();
-        this.serverSocket = new ServerSocket(8080);
+        this.serverSocket = new ServerSocket(SERVER_SOCKET_PORT);
 
         this.scanner = new Scanner(System.in);
         this.coordinatorLogger = new Logger("/tmp/CoordinatorLog.txt", "Coordinator", true);
@@ -139,9 +142,9 @@ public class Coordinator {
                     Printer.print("read " + port, "blue");
 
                     //TODO: This does not seem to work... Possible solution: Reopen a ServerSocket and have the Subordinates connect to it
-                    Socket socket = new Socket("localhost", Integer.parseInt(port));
+                    Socket socket = new Socket(SERVER_SOCKET_HOST, Integer.parseInt(port));
                     this.sockets.add(socket);
-                    socket.setSoTimeout(TIMEOUT_MILLISECS);
+                    socket.setSoTimeout(TIMEOUT_MILLIS);
                     this.writers.add(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8));
                     this.readers.add(new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8)));
                     this.socketLogger.log(Integer.toString(socket.getPort()), false, false, false);
@@ -163,7 +166,7 @@ public class Coordinator {
 
                     Socket socket = this.serverSocket.accept();
                     this.sockets.add(socket);
-                    socket.setSoTimeout(TIMEOUT_MILLISECS);
+                    socket.setSoTimeout(TIMEOUT_MILLIS);
                     this.writers.add(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8));
                     this.readers.add(new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8)));
                     this.socketLogger.log(Integer.toString(socket.getPort()), false, false, false);
@@ -295,13 +298,13 @@ public class Coordinator {
         boolean userInputPresent = false;
         String decisionMessage = decision ? "COMMIT" : "ABORT";
 
-        System.out.print("Please press enter within " + Coordinator.TIMEOUT_MILLISECS/1000 +
+        System.out.print("Please press enter within " + Coordinator.TIMEOUT_MILLIS /1000 +
                 " seconds to broadcast \"" + decisionMessage + "\" to the subordinates: ");
 
         InputHandler inputHandler = new InputHandler(new Scanner(System.in));
         inputHandler.start();
 
-        while(!userInputPresent && (timeDiff < Coordinator.TIMEOUT_MILLISECS)) {
+        while(!userInputPresent && (timeDiff < Coordinator.TIMEOUT_MILLIS)) {
 
             userInputPresent = inputHandler.isInputYetReceived();
             timeDiff = System.currentTimeMillis() - startTime;
@@ -312,7 +315,7 @@ public class Coordinator {
 
         if (userInputPresent &&
                 inputHandler.getUserInput().toUpperCase().equals("") &&
-                (timeDiff < Coordinator.TIMEOUT_MILLISECS)) {
+                (timeDiff < Coordinator.TIMEOUT_MILLIS)) {
 
             Printer.print("", "white");
 
@@ -493,7 +496,7 @@ public class Coordinator {
 
         for (int i = 0; i < crashedSubordinateIndices.size(); i++) {
 
-            this.sockets.get(crashedSubordinateIndices.get(i)).setSoTimeout(TIMEOUT_MILLISECS);
+            this.sockets.get(crashedSubordinateIndices.get(i)).setSoTimeout(TIMEOUT_MILLIS);
 
         }
 

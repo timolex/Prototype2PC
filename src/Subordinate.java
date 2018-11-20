@@ -106,12 +106,12 @@ public class Subordinate {
         }
 
         // Here, for all further incoming messages, a timeout (defined in Coordinator.java) is set.
-        this.coordinatorSocket.setSoTimeout(Coordinator.TIMEOUT_MILLISECS);
+        this.coordinatorSocket.setSoTimeout(Coordinator.TIMEOUT_MILLIS);
 
         if (messageArrived && prepareMsg.equals("PREPARE")){
 
             System.out.print("Please enter the vote ('y' for 'YES'/ 'n' for 'NO') to be sent back to the coordinator within "
-                    + Coordinator.TIMEOUT_MILLISECS/1000 + " seconds. ");
+                    + Coordinator.TIMEOUT_MILLIS /1000 + " seconds. ");
             System.out.print("If you wish to let this subordinate fail at this stage, please enter 'f': ");
             long startTime = System.currentTimeMillis();
             long timeDiff = 0;
@@ -120,7 +120,7 @@ public class Subordinate {
             InputHandler inputHandler = new InputHandler(new Scanner(System.in));
             inputHandler.start();
 
-            while(!userInputPresent && (timeDiff < Coordinator.TIMEOUT_MILLISECS)) {
+            while(!userInputPresent && (timeDiff < Coordinator.TIMEOUT_MILLIS)) {
 
                 userInputPresent = inputHandler.isInputYetReceived();
                 timeDiff = System.currentTimeMillis() - startTime;
@@ -131,7 +131,7 @@ public class Subordinate {
 
             if (userInputPresent &&
                     inputHandler.getUserInput().toUpperCase().equals("Y") &&
-                    ((System.currentTimeMillis() - startTime) < Coordinator.TIMEOUT_MILLISECS))  {
+                    ((System.currentTimeMillis() - startTime) < Coordinator.TIMEOUT_MILLIS))  {
 
                 this.SubordinateLogger.log("PREPARED", true, true, true);
                 this.send("Y");
@@ -140,7 +140,7 @@ public class Subordinate {
 
             } else if (userInputPresent &&
                     inputHandler.getUserInput().toUpperCase().equals("N") &&
-                    ((System.currentTimeMillis() - startTime) < Coordinator.TIMEOUT_MILLISECS)) {
+                    ((System.currentTimeMillis() - startTime) < Coordinator.TIMEOUT_MILLIS)) {
 
                 this.SubordinateLogger.log("ABORT", true, true, true);
                 this.send("N");
@@ -150,7 +150,7 @@ public class Subordinate {
 
             } else if (userInputPresent &&
                     inputHandler.getUserInput().toUpperCase().equals("F") &&
-                    ((System.currentTimeMillis() - startTime) < Coordinator.TIMEOUT_MILLISECS)){
+                    ((System.currentTimeMillis() - startTime) < Coordinator.TIMEOUT_MILLIS)){
 
                 Printer.print("=============== SUBORDINATE CRASHES =================\n", "red");
 
@@ -159,7 +159,7 @@ public class Subordinate {
 
             } else {
 
-                Printer.print("\nNo valid input detected within " + Coordinator.TIMEOUT_MILLISECS / 1000 + " seconds!", "red");
+                Printer.print("\nNo valid input detected within " + Coordinator.TIMEOUT_MILLIS / 1000 + " seconds!", "red");
                 Printer.print("=============== SUBORDINATE CRASHES =================\n", "red");
 
                 // Terminate the program, even if System.in still blocks in InputHandler
@@ -226,7 +226,7 @@ public class Subordinate {
 
             } catch (NullPointerException | SocketException e) {
 
-                while((System.currentTimeMillis() - startTime) < Coordinator.TIMEOUT_MILLISECS) {
+                while((System.currentTimeMillis() - startTime) < Coordinator.TIMEOUT_MILLIS) {
 
                     // wait
 
@@ -299,7 +299,7 @@ public class Subordinate {
 
     private void sendAck() throws IOException {
 
-        System.out.print("Please press enter within " + Coordinator.TIMEOUT_MILLISECS / 1000 + " seconds, for" +
+        System.out.print("Please press enter within " + Coordinator.TIMEOUT_MILLIS / 1000 + " seconds, for" +
                 " letting this subordinate acknowledge the coordinator's decision: ");
 
         InputHandler inputHandler = new InputHandler(new Scanner(System.in));
@@ -309,7 +309,7 @@ public class Subordinate {
         long startTime = System.currentTimeMillis();
         long timeDiff = 0;
 
-        while (!inputPresent && (timeDiff < Coordinator.TIMEOUT_MILLISECS)) {
+        while (!inputPresent && (timeDiff < Coordinator.TIMEOUT_MILLIS)) {
 
             inputPresent = inputHandler.isInputYetReceived();
             timeDiff = System.currentTimeMillis() - startTime;
@@ -320,7 +320,7 @@ public class Subordinate {
 
         if (inputPresent &&
                 inputHandler.getUserInput().toUpperCase().equals("") &&
-                (timeDiff < Coordinator.TIMEOUT_MILLISECS)) {
+                (timeDiff < Coordinator.TIMEOUT_MILLIS)) {
 
             this.send("ACK");
             this.SubordinateLogger.log("END", false, true, true);
@@ -329,7 +329,7 @@ public class Subordinate {
 
         } else {
 
-            Printer.print("\nNot acknowledged within " + Coordinator.TIMEOUT_MILLISECS / 1000 + " seconds!", "red");
+            Printer.print("\nNot acknowledged within " + Coordinator.TIMEOUT_MILLIS / 1000 + " seconds!", "red");
             Printer.print("=============== SUBORDINATE CRASHES =================\n", "red");
 
             // Terminate the program, even if System.in still blocks in InputHandler
@@ -358,7 +358,7 @@ public class Subordinate {
 
         if ((args.length == 2) && (args[0].equals("-F")) && (Integer.parseInt(args[1]) > 0)) {
 
-            Socket coordinatorSocket = new Socket("localhost", 8080);
+            Socket coordinatorSocket = new Socket(Coordinator.SERVER_SOCKET_HOST, Coordinator.SERVER_SOCKET_PORT);
 
             try {
 
