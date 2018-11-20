@@ -116,6 +116,30 @@ public class Coordinator {
 
     }
 
+    private void acceptSubordinates() throws IOException {
+
+        int subordinateCounter = 0;
+
+        while (subordinateCounter < this.maxSubordinates) {
+
+            Socket socket = this.serverSocket.accept();
+
+            this.sockets.add(socket);
+
+            socket.setSoTimeout(TIMEOUT_MILLIS);
+
+            this.writers.add(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8));
+            this.readers.add(new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8)));
+            this.socketLogger.log(Integer.toString(socket.getPort()), false, false, false);
+
+            subordinateCounter++;
+
+            System.out.println("Added socket for subordinate " + "S" + subordinateCounter + ".");
+
+        }
+
+    }
+
     private void initiate() throws IOException {
 
         try {
@@ -127,53 +151,15 @@ public class Coordinator {
 
                 Printer.print("\nWaiting for " + maxSubordinates + " subordinates to re-connect...\n", "white");
 
-                List<String> subordinatePorts = this.socketLogger.getLog();
+                this.acceptSubordinates();
 
-                if(subordinatePorts.size() != maxSubordinates) {
-
-                    throw new IOException("Illegal SubordinatePorts-log detected, size: " + subordinatePorts.size());
-
-                }
-
-                int subordinateCounter = 0;
-
-                for (String port : subordinatePorts) {
-
-                    Printer.print("read " + port, "blue");
-
-                    //TODO: This does not seem to work... Possible solution: Reopen a ServerSocket and have the Subordinates connect to it
-                    Socket socket = new Socket(SERVER_SOCKET_HOST, Integer.parseInt(port));
-                    this.sockets.add(socket);
-                    socket.setSoTimeout(TIMEOUT_MILLIS);
-                    this.writers.add(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8));
-                    this.readers.add(new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8)));
-                    this.socketLogger.log(Integer.toString(socket.getPort()), false, false, false);
-                    subordinateCounter++;
-                    System.out.println("Added socket for subordinate " + "S" + subordinateCounter + ".");
-
-                }
-
-                this.checkVotes();
+                this.phaseOne();
 
             } else {
 
                 Printer.print("\nWaiting for " + maxSubordinates + " subordinates to connect...\n", "white");
 
-
-                int subordinateCounter = 0;
-
-                while (subordinateCounter < this.maxSubordinates) {
-
-                    Socket socket = this.serverSocket.accept();
-                    this.sockets.add(socket);
-                    socket.setSoTimeout(TIMEOUT_MILLIS);
-                    this.writers.add(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8));
-                    this.readers.add(new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8)));
-                    this.socketLogger.log(Integer.toString(socket.getPort()), false, false, false);
-                    subordinateCounter++;
-                    System.out.println("Added socket for subordinate " + "S" + subordinateCounter + ".");
-
-                }
+                this.acceptSubordinates();
 
                 System.out.println("\n");
 
@@ -197,10 +183,11 @@ public class Coordinator {
 
         Printer.print("=============== START OF PHASE 1 ===============", "blue");
 
-        System.out.print("Please press enter to broadcast \"PREPARE\" to the subordinates: ");
+        System.out.print("Please press enter to broadcast \"PREPARE\" to the subordinates: \n");
 
         if (scanner.nextLine().toUpperCase().equals(""))  {
 
+            this.broadcast("PREPARE");
             this.checkVotes();
 
         } else {
@@ -216,9 +203,6 @@ public class Coordinator {
         boolean decision = true;
         boolean phaseOneSubordinateFailure = false;
         boolean illegalAnswer = false;
-
-        Printer.print("", "white");
-        this.broadcast("PREPARE");
 
         List<String> votes;
         votes = this.receive(this.readers);
@@ -486,17 +470,13 @@ public class Coordinator {
 
             Socket socket = this.serverSocket.accept();
 
+            socket.setSoTimeout(TIMEOUT_MILLIS);
+
             this.sockets.set(nextSocketToReplaceIndex, socket);
             this.readers.set(nextSocketToReplaceIndex, new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8)));
             this.writers.set(nextSocketToReplaceIndex, new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8));
 
             ++numberOfReconnectedSubordinates;
-
-        }
-
-        for (int i = 0; i < crashedSubordinateIndices.size(); i++) {
-
-            this.sockets.get(crashedSubordinateIndices.get(i)).setSoTimeout(TIMEOUT_MILLIS);
 
         }
 

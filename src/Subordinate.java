@@ -2,8 +2,8 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.net.ConnectException;
 import java.net.Socket;
-import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.nio.charset.StandardCharsets;
 import java.util.Scanner;
@@ -23,10 +23,6 @@ public class Subordinate {
         this.writer = new OutputStreamWriter(coordinatorSocket.getOutputStream(), StandardCharsets.UTF_8);
         String filename = ("/tmp/Subordinate").concat(String.valueOf(index).concat("Log.txt"));
         this.SubordinateLogger = new Logger(filename, "Subordinate", true);
-    }
-
-    private Socket getCoordinatorSocket() {
-        return coordinatorSocket;
     }
 
     private String receive(boolean verbosely) throws IOException {
@@ -68,13 +64,12 @@ public class Subordinate {
 
     private void initiate() throws IOException {
 
-        System.out.println("\nMy coordinator (C) is @ port " + this.getCoordinatorSocket().getPort() + "\n\n");
+        System.out.println("\nMy coordinator (C) is @ port " + this.coordinatorSocket.getPort() + "\n\n");
 
         String loggedDecision = this.SubordinateLogger.readLogBottom().split(" ")[0];
 
         if(loggedDecision.equals("ABORT") || loggedDecision.equals("PREPARED") || loggedDecision.equals("COMMIT")) {
 
-            //TODO: Handle the case, in which the subordinate crashed after force-writing PREPARE and before receiving the decision.
             this.resurrect(loggedDecision);
 
         } else {
@@ -178,84 +173,46 @@ public class Subordinate {
 
         String decisionMsg = "";
         String loggedVote = this.SubordinateLogger.readLogBottom().split(" ")[0];
-        int attempts = 0;
-        boolean msgArrived = false;
-        long startTime = 0;
+        boolean reconnectSuccess = true;
         boolean recoveryProcessStarted = false;
 
-        while(attempts < 3 && !msgArrived) {
+        if(!(loggedVote.equals("PREPARED") || loggedVote.equals("ABORT"))) {
 
-            try {
+            throw new IOException("Illegal logged vote read: "+ loggedVote);
 
-                if(!(loggedVote.equals("PREPARED") || loggedVote.equals("ABORT"))) {
-
-                    throw new IOException("Illegal logged vote read: "+ loggedVote);
-
-                } else if (attempts > 0) {
-
-                    if(loggedVote.equals("PREPARED")) {
-
-                        this.send("Y");
-
-                    } else {
-
-                        this.send("N");
-
-                    }
-
-                }
-                startTime = System.currentTimeMillis();
-                decisionMsg = this.receive(true);
-                msgArrived = true;
-
-            } catch (SocketTimeoutException ste) {
-
-                Printer.print("\nNo message received from coordinator", "white");
-
-                if (!recoveryProcessStarted) {
-
-                    Printer.print("\n=============== START OF RECOVERY PROCESS ===============", "orange");
-                    recoveryProcessStarted = true;
-
-                }
-
-                int printAttempt = attempts + 2;
-                if(attempts < 2) Printer.print("\nStarting attempt " + printAttempt + "...", "white");
-
-                ++attempts;
-
-            } catch (NullPointerException | SocketException e) {
-
-                while((System.currentTimeMillis() - startTime) < Coordinator.TIMEOUT_MILLIS) {
-
-                    // wait
-
-                }
-
-                Printer.print("\nNo message received from coordinator!", "orange");
-
-                if (!recoveryProcessStarted) {
-
-                    Printer.print("\n=============== START OF RECOVERY PROCESS ===============", "orange");
-                    recoveryProcessStarted = true;
-
-                }
-
-                int printAttempt = attempts + 2;
-                if(attempts < 2) Printer.print("\nStarting attempt " + printAttempt + "...", "white");
-
-                // Resetting the clock
-                startTime = System.currentTimeMillis();
-                ++attempts;
-
-            } catch (IOException ioe) {
-
-                ioe.printStackTrace();
-
-            }
         }
 
-        if(attempts >= 3) {
+        try {
+
+            decisionMsg = this.receive(true);
+
+
+        } catch (NullPointerException npe) {
+
+            long startTime = System.currentTimeMillis();
+
+            while((System.currentTimeMillis() - startTime) < Coordinator.TIMEOUT_MILLIS) {
+
+                // wait
+
+            }
+
+            Printer.print("\nNo message received from coordinator!", "orange");
+
+            recoveryProcessStarted = true;
+            reconnectSuccess = this.recoveryProcess();
+
+
+        } catch (SocketTimeoutException ste) {
+
+            Printer.print("\nNo message received from coordinator!", "orange");
+
+            recoveryProcessStarted = true;
+            reconnectSuccess = this.recoveryProcess();
+
+        }
+
+        if(!reconnectSuccess) {
 
             Printer.print("\nCoordinator is considered crashed permanently!", "red");
 
@@ -272,28 +229,96 @@ public class Subordinate {
 
         } else {
 
-            switch (decisionMsg) {
+            if(recoveryProcessStarted) {
 
-                case "COMMIT":
-                case "ABORT":
+                //TODO: Build an alternative phaseOne()-method here, which automatically sends the loggedDecision
+                //(maybe include the log-check directly into phaseOne)
+                this.phaseOne();
 
-                    if (!this.SubordinateLogger.readLogBottom().split(" ")[0].equals("ABORT") &&
-                        !this.SubordinateLogger.readLogBottom().split(" ")[0].equals("COMMIT")) {
+            } else {
 
-                        this.SubordinateLogger.log(decisionMsg, true, true, true);
+                switch (decisionMsg) {
 
-                    }
+                    case "COMMIT":
+                    case "ABORT":
 
-                    this.sendAck();
+                        if (!this.SubordinateLogger.readLogBottom().split(" ")[0].equals("ABORT") &&
+                                !this.SubordinateLogger.readLogBottom().split(" ")[0].equals("COMMIT")) {
 
-                    break;
+                            this.SubordinateLogger.log(decisionMsg, true, true, true);
 
-                default:
+                        }
 
-                    throw new IOException("Illegal decision message received from coordinator: " + decisionMsg);
+                        this.sendAck();
+
+                        break;
+
+                    default:
+
+                        throw new IOException("Illegal decision message received from coordinator: " + decisionMsg);
+
+                }
 
             }
+
         }
+
+    }
+
+    //TODO: Directly read the log here
+    private void sendVote(String loggedVote) throws IOException {
+
+        if(loggedVote.equals("PREPARED")) {
+
+            this.send("Y");
+
+
+        } else {
+
+            this.send("N");
+
+        }
+
+    }
+
+    private boolean recoveryProcess() throws IOException {
+
+        Printer.print("\n=============== START OF RECOVERY PROCESS ===============", "orange");
+
+        int reattempts = 0;
+        int maxReattempts = 3;
+
+        while (reattempts != maxReattempts) {
+
+            try {
+
+                Printer.print("\nReconnecting to coordinator...", "white");
+
+                this.coordinatorSocket = new Socket(Coordinator.SERVER_SOCKET_HOST, Coordinator.SERVER_SOCKET_PORT);
+                this.coordinatorSocket.setSoTimeout(0);
+                this.reader = new BufferedReader(new InputStreamReader(this.coordinatorSocket.getInputStream(), StandardCharsets.UTF_8));
+                this.writer = new OutputStreamWriter(this.coordinatorSocket.getOutputStream(), StandardCharsets.UTF_8);
+                return true;
+
+            } catch (ConnectException ce) {
+
+                Printer.print("\nUnable to reconnect to coordinator!", "orange");
+
+                long startTime = System.currentTimeMillis();
+
+                while((System.currentTimeMillis() - startTime) < Coordinator.TIMEOUT_MILLIS) {
+
+                    // wait
+
+                }
+
+                ++reattempts;
+
+            }
+
+        }
+
+        return false;
 
     }
 
@@ -337,6 +362,7 @@ public class Subordinate {
         }
 
     }
+
 
     private void resurrect(String loggedDecision) throws IOException {
 
