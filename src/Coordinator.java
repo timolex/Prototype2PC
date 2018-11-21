@@ -21,8 +21,8 @@ public class Coordinator {
     private List<OutputStreamWriter> writers = new ArrayList<>();
     private List<BufferedReader> readers = new ArrayList<>();
     private Scanner scanner;
-    private Logger coordinatorLogger;
-    private Logger socketLogger;
+    private Logger coordinatorLog;
+    private Logger failedSubordinatesLog;
     private int maxSubordinates;
     private String loggedDecision;
     private boolean isRecoveryProcessStarted;
@@ -33,11 +33,9 @@ public class Coordinator {
 
         this.sockets = new ArrayList<>();
         this.serverSocket = new ServerSocket(SERVER_SOCKET_PORT);
-
         this.scanner = new Scanner(System.in);
-        this.coordinatorLogger = new Logger("/tmp/CoordinatorLog.txt", "Coordinator", true);
-        this.socketLogger = new Logger("/tmp/SubordinatePorts.txt", "Coordinator",true);
-
+        this.coordinatorLog = new Logger("/tmp/CoordinatorLog.txt", "Coordinator", true);
+        this.failedSubordinatesLog = new Logger("/tmp/FailedSubordinates.txt", "", true);
         this.maxSubordinates = maxSubordinates;
         this.loggedDecision = "";
         this.isRecoveryProcessStarted = false;
@@ -130,7 +128,6 @@ public class Coordinator {
 
             this.writers.add(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8));
             this.readers.add(new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8)));
-            this.socketLogger.log(Integer.toString(socket.getPort()), false, false, false);
 
             subordinateCounter++;
 
@@ -146,14 +143,38 @@ public class Coordinator {
 
         try {
 
-            if(this.coordinatorLogger.readLogBottom().split(" ")[0].equals("COMMIT") ||
-                    this.coordinatorLogger.readLogBottom().split(" ")[0].equals("ABORT")) {
+            if(this.coordinatorLog.readLogBottom().split(" ")[0].equals("COMMIT") ||
+                    this.coordinatorLog.readLogBottom().split(" ")[0].equals("ABORT")) {
+
+
 
                 Printer.print("\n=============== COORDINATOR RESURRECTS =================", "red");
 
-                Printer.print("\nWaiting for " + maxSubordinates + " subordinates to reconnect...\n", "white");
-
                 this.isCoordinatorResurrecting = true;
+
+                int numberOfPreviouslyCrashedSubordinates;
+
+                if(!this.failedSubordinatesLog.readLogBottom().isEmpty()) {
+
+                    numberOfPreviouslyCrashedSubordinates = Integer.parseInt(this.failedSubordinatesLog.readLogBottom());
+
+                } else {
+
+                    numberOfPreviouslyCrashedSubordinates = 0;
+
+                }
+
+
+                if (numberOfPreviouslyCrashedSubordinates > maxSubordinates || numberOfPreviouslyCrashedSubordinates < 0) {
+
+                    throw new IOException("Illegal number of phase one subordinate crashes read: " + numberOfPreviouslyCrashedSubordinates);
+
+                }
+
+                int temp = this.maxSubordinates;
+                this.maxSubordinates = temp - numberOfPreviouslyCrashedSubordinates;
+
+                Printer.print("\nWaiting for " + maxSubordinates + " subordinate(s) to reconnect...\n", "white");
 
                 this.acceptSubordinates();
 
@@ -161,7 +182,7 @@ public class Coordinator {
 
             } else {
 
-                Printer.print("\nWaiting for " + maxSubordinates + " subordinates to connect...\n", "white");
+                Printer.print("\nWaiting for " + maxSubordinates + " subordinate(s) to connect...\n", "white");
 
                 this.acceptSubordinates();
 
@@ -248,7 +269,7 @@ public class Coordinator {
 
         }
 
-        this.removeSockets(socketsToRemove);
+        if(socketsToRemove.size() > 0) this.removeSockets(socketsToRemove);
 
         if (!illegalAnswer) {
 
@@ -264,26 +285,27 @@ public class Coordinator {
 
             if (decision) {
 
-                coordinatorLogger.log("COMMIT", true, true, true);
+                this.coordinatorLog.log("COMMIT", true, true, true);
 
             } else {
 
-                coordinatorLogger.log("ABORT", true, true, true);
+                this.coordinatorLog.log("ABORT", true, true, true);
 
             }
+
+            if(this.sockets.size() == 0) {
+
+                this.coordinatorLog.log("END", false, true, true);
+                this.failedSubordinatesLog.emptyLog();
+
+            }
+
 
             Printer.print("=============== END OF PHASE 1 =================\n", "blue");
 
             if (this.sockets.size() > 0) this.phaseTwo(decision);
 
         } else {
-
-            //TODO: Check, if we really need this anymore...
-            for (Socket socket : this.sockets) {
-
-                socket.close();
-
-            }
 
             throw new IOException("Illegal vote received from a subordinate");
 
@@ -300,13 +322,13 @@ public class Coordinator {
         boolean userInputPresent = false;
         String decisionMessage = decision ? "COMMIT" : "ABORT";
 
-        System.out.print("Please press enter within " + Coordinator.TIMEOUT_MILLIS /1000 +
+        System.out.print("Please press enter within " + Coordinator.TIMEOUT_MILLIS /2000 +
                 " seconds to broadcast \"" + decisionMessage + "\" to the subordinates: ");
 
         InputHandler inputHandler = new InputHandler(new Scanner(System.in));
         inputHandler.start();
 
-        while(!userInputPresent && (timeDiff < Coordinator.TIMEOUT_MILLIS)) {
+        while(!userInputPresent && (timeDiff < (Coordinator.TIMEOUT_MILLIS/2))) {
 
             userInputPresent = inputHandler.isInputYetReceived();
             timeDiff = System.currentTimeMillis() - startTime;
@@ -393,12 +415,12 @@ public class Coordinator {
 
         } else {
 
-            this.coordinatorLogger.log("END", false, true, true);
-            this.socketLogger.emptyLog();
+            this.coordinatorLog.log("END", false, true, true);
 
             if (this.isRecoveryProcessStarted)
                 Printer.print("=============== END OF RECOVERY PROCESS =================\n", "orange");
 
+            this.failedSubordinatesLog.emptyLog();
             Printer.print("=============== END OF PHASE 2 =================\n", "green");
 
         }
@@ -419,7 +441,7 @@ public class Coordinator {
          */
         this.reAcceptCrashedSubordinates(crashedSubordinateIndices);
 
-        if (this.loggedDecision.isEmpty()) this.loggedDecision = coordinatorLogger.readLogBottom().split(" ")[0];
+        if (this.loggedDecision.isEmpty()) this.loggedDecision = coordinatorLog.readLogBottom().split(" ")[0];
 
         boolean decisionMsgPrinted = false;
         List<Integer> unreachableSubordinatesIndices = new ArrayList<>();
@@ -542,6 +564,8 @@ public class Coordinator {
         this.sockets = newSockets;
         this.writers = newWriters;
         this.readers = newReaders;
+
+        this.failedSubordinatesLog.log(String.valueOf(socketsToRemove.size()), false, false, false);
 
     }
 
