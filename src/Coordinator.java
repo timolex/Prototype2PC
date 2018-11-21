@@ -16,7 +16,6 @@ public class Coordinator {
     public static final int SERVER_SOCKET_PORT = 8080;
     public static final String SERVER_SOCKET_HOST = "localhost";
 
-
     private List<Socket> sockets;
     private ServerSocket serverSocket;
     private List<OutputStreamWriter> writers = new ArrayList<>();
@@ -150,7 +149,7 @@ public class Coordinator {
             if(this.coordinatorLogger.readLogBottom().split(" ")[0].equals("COMMIT") ||
                     this.coordinatorLogger.readLogBottom().split(" ")[0].equals("ABORT")) {
 
-                Printer.print("=============== COORDINATOR RESURRECTS =================", "red");
+                Printer.print("\n=============== COORDINATOR RESURRECTS =================", "red");
 
                 Printer.print("\nWaiting for " + maxSubordinates + " subordinates to reconnect...\n", "white");
 

@@ -15,6 +15,7 @@ public class Subordinate {
     private OutputStreamWriter writer;
     private Logger SubordinateLogger;
     private boolean recoveryProcessStarted = false;
+    private String loggedVote;
 
     private Subordinate(Socket socket, String index) throws IOException {
 
@@ -82,6 +83,7 @@ public class Subordinate {
 
     private void phaseOne() throws IOException {
 
+        if(this.recoveryProcessStarted) Printer.print("\nRe-entering phase 1...\n", "blue");
         Printer.print("=============== START OF PHASE 1 ===============", "blue");
 
 
@@ -105,62 +107,78 @@ public class Subordinate {
 
         if (messageArrived && prepareMsg.equals("PREPARE")){
 
-            System.out.print("Please enter the vote ('y' for 'YES'/ 'n' for 'NO') to be sent back to the coordinator within "
-                    + Coordinator.TIMEOUT_MILLIS /1000 + " seconds. ");
-            System.out.print("If you wish to let this subordinate fail at this stage, please enter 'f': ");
-            long startTime = System.currentTimeMillis();
-            long timeDiff = 0;
-            boolean userInputPresent = false;
+            if(this.recoveryProcessStarted) {
 
-            InputHandler inputHandler = new InputHandler(new Scanner(System.in));
-            inputHandler.start();
+                Printer.print("Subordinate-log reads: \"" + this.loggedVote + "\"\n", "white");
 
-            while(!userInputPresent && (timeDiff < Coordinator.TIMEOUT_MILLIS)) {
+                this.sendVote();
 
-                userInputPresent = inputHandler.isInputYetReceived();
-                timeDiff = System.currentTimeMillis() - startTime;
-
-                System.out.print("");
-
-            }
-
-            if (userInputPresent &&
-                    inputHandler.getUserInput().toUpperCase().equals("Y") &&
-                    ((System.currentTimeMillis() - startTime) < Coordinator.TIMEOUT_MILLIS))  {
-
-                this.SubordinateLogger.log("PREPARED", true, true, true);
-                this.send("Y");
                 Printer.print("=============== END OF PHASE 1 =================\n", "blue");
+
                 this.phaseTwo();
-
-            } else if (userInputPresent &&
-                    inputHandler.getUserInput().toUpperCase().equals("N") &&
-                    ((System.currentTimeMillis() - startTime) < Coordinator.TIMEOUT_MILLIS)) {
-
-                this.SubordinateLogger.log("ABORT", true, true, true);
-                this.send("N");
-                Printer.print("=============== END OF PHASE 1 =================\n", "blue");
-                this.phaseTwo();
-
-
-            } else if (userInputPresent &&
-                    inputHandler.getUserInput().toUpperCase().equals("F") &&
-                    ((System.currentTimeMillis() - startTime) < Coordinator.TIMEOUT_MILLIS)){
-
-                Printer.print("=============== SUBORDINATE CRASHES =================\n", "red");
-
-                // Terminate the program, even if System.in still blocks in InputHandler
-                System.exit(0);
 
             } else {
 
-                Printer.print("\nNo valid input detected within " + Coordinator.TIMEOUT_MILLIS / 1000 + " seconds!", "red");
-                Printer.print("=============== SUBORDINATE CRASHES =================\n", "red");
+                System.out.print("Please enter the vote ('y' for 'YES'/ 'n' for 'NO') to be sent back to the coordinator within "
+                        + Coordinator.TIMEOUT_MILLIS /1000 + " seconds. ");
+                System.out.print("If you wish to let this subordinate fail at this stage, please enter 'f': ");
+                long timeDiff = 0;
+                boolean userInputPresent = false;
 
-                // Terminate the program, even if System.in still blocks in InputHandler
-                System.exit(0);
+                InputHandler inputHandler = new InputHandler(new Scanner(System.in));
+                inputHandler.start();
+                long startTime = System.currentTimeMillis();
+
+                while(!userInputPresent && (timeDiff < Coordinator.TIMEOUT_MILLIS)) {
+
+                    userInputPresent = inputHandler.isInputYetReceived();
+                    timeDiff = System.currentTimeMillis() - startTime;
+
+                    System.out.print("");
+
+                }
+
+                if (userInputPresent &&
+                        inputHandler.getUserInput().toUpperCase().equals("Y") &&
+                        ((System.currentTimeMillis() - startTime) < Coordinator.TIMEOUT_MILLIS))  {
+
+                    this.SubordinateLogger.log("PREPARED", true, true, true);
+                    this.send("Y");
+                    Printer.print("=============== END OF PHASE 1 =================\n", "blue");
+                    this.phaseTwo();
+
+                } else if (userInputPresent &&
+                        inputHandler.getUserInput().toUpperCase().equals("N") &&
+                        ((System.currentTimeMillis() - startTime) < Coordinator.TIMEOUT_MILLIS)) {
+
+                    this.SubordinateLogger.log("ABORT", true, true, true);
+                    this.send("N");
+                    Printer.print("=============== END OF PHASE 1 =================\n", "blue");
+                    this.phaseTwo();
+
+
+                } else if (userInputPresent &&
+                        inputHandler.getUserInput().toUpperCase().equals("F") &&
+                        ((System.currentTimeMillis() - startTime) < Coordinator.TIMEOUT_MILLIS)){
+
+                    Printer.print("=============== SUBORDINATE CRASHES =================\n", "red");
+
+                    // Terminate the program, even if System.in still blocks in InputHandler
+                    System.exit(0);
+
+                } else {
+
+                    Printer.print("\nNo valid input detected within " + Coordinator.TIMEOUT_MILLIS / 1000 + " seconds!", "red");
+                    Printer.print("=============== SUBORDINATE CRASHES =================\n", "red");
+
+                    // Terminate the program, even if System.in still blocks in InputHandler
+                    System.exit(0);
+
+                }
 
             }
+
+
 
         }
 
@@ -172,7 +190,7 @@ public class Subordinate {
         Printer.print("Waiting for the coordinator's decision message...\n", "white");
 
         String decisionMsg = "";
-        String loggedVote = this.SubordinateLogger.readLogBottom().split(" ")[0];
+        this.loggedVote = this.SubordinateLogger.readLogBottom().split(" ")[0];
         boolean reconnectSuccess = true;
         boolean reEnterPhaseOne = false;
 
@@ -268,10 +286,15 @@ public class Subordinate {
 
     }
 
-    //TODO: Directly read the log here
-    private void sendVote(String loggedVote) throws IOException {
+    private void sendVote() throws IOException {
 
-        if(loggedVote.equals("PREPARED")) {
+        if(this.loggedVote.equals("")) {
+
+            throw new IOException("loggedVote is empty");
+
+        }
+
+        if(this.loggedVote.equals("PREPARED")) {
 
             this.send("Y");
 
