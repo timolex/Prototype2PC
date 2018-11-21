@@ -14,7 +14,7 @@ public class Subordinate {
     private BufferedReader reader;
     private OutputStreamWriter writer;
     private Logger SubordinateLogger;
-
+    private boolean recoveryProcessStarted = false;
 
     private Subordinate(Socket socket, String index) throws IOException {
 
@@ -85,8 +85,8 @@ public class Subordinate {
         Printer.print("=============== START OF PHASE 1 ===============", "blue");
 
 
-        boolean messageArrived = false;
         String prepareMsg = "";
+        boolean messageArrived = false;
 
         try {
 
@@ -174,13 +174,15 @@ public class Subordinate {
         String decisionMsg = "";
         String loggedVote = this.SubordinateLogger.readLogBottom().split(" ")[0];
         boolean reconnectSuccess = true;
-        boolean recoveryProcessStarted = false;
+        boolean reEnterPhaseOne = false;
 
         if(!(loggedVote.equals("PREPARED") || loggedVote.equals("ABORT"))) {
 
             throw new IOException("Illegal logged vote read: "+ loggedVote);
 
         }
+
+        long startTime = System.currentTimeMillis();
 
         try {
 
@@ -189,7 +191,6 @@ public class Subordinate {
 
         } catch (NullPointerException npe) {
 
-            long startTime = System.currentTimeMillis();
 
             while((System.currentTimeMillis() - startTime) < Coordinator.TIMEOUT_MILLIS) {
 
@@ -199,7 +200,8 @@ public class Subordinate {
 
             Printer.print("\nNo message received from coordinator!", "orange");
 
-            recoveryProcessStarted = true;
+            this.recoveryProcessStarted = true;
+            reEnterPhaseOne = true;
             reconnectSuccess = this.recoveryProcess();
 
 
@@ -207,7 +209,8 @@ public class Subordinate {
 
             Printer.print("\nNo message received from coordinator!", "orange");
 
-            recoveryProcessStarted = true;
+            this.recoveryProcessStarted = true;
+            reEnterPhaseOne = true;
             reconnectSuccess = this.recoveryProcess();
 
         }
@@ -229,7 +232,7 @@ public class Subordinate {
 
         } else {
 
-            if(recoveryProcessStarted) {
+            if(reEnterPhaseOne) {
 
                 //TODO: Build an alternative phaseOne()-method here, which automatically sends the loggedDecision
                 //(maybe include the log-check directly into phaseOne)

@@ -138,6 +138,8 @@ public class Coordinator {
 
         }
 
+        this.serverSocket.close();
+
     }
 
     private void initiate() throws IOException {
@@ -446,7 +448,6 @@ public class Coordinator {
             }
         }
 
-
         if(unreachableSubordinatesIndices.size() > 0) this.recoveryProcess(unreachableSubordinatesIndices);
 
         Printer.print("", "white");
@@ -532,8 +533,6 @@ public class Coordinator {
 
             int maxSubordinates = Integer.parseInt(args[1]);
 
-
-            //TODO: Move subordinate accepting to initiate() method
 
             Coordinator coordinator = new Coordinator(maxSubordinates);
             coordinator.initiate();
