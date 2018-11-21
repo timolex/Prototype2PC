@@ -185,23 +185,35 @@ public class Coordinator {
 
     private void phaseOne() throws IOException {
 
-        if(this.isCoordinatorResurrecting) Printer.print("\nRe-entering phase 1...\n", "blue");
+        if(this.isCoordinatorResurrecting) {
 
-        Printer.print("=============== START OF PHASE 1 ===============", "blue");
+            Printer.print("\nRe-entering phase 1...\n", "blue");
 
-        System.out.print("Please press enter to broadcast \"PREPARE\" to the subordinates: \n");
-
-        if (scanner.nextLine().toUpperCase().equals(""))  {
+            Printer.print("=============== START OF PHASE 1 ===============", "blue");
 
             this.broadcast("PREPARE");
             this.checkVotes();
 
         } else {
 
-            Printer.print("", "");
-            Printer.print("=============== COORDINATOR CRASHES =================\n", "red");
+            Printer.print("=============== START OF PHASE 1 ===============", "blue");
+
+            System.out.print("Please press enter to broadcast \"PREPARE\" to the subordinates: \n");
+
+            if (scanner.nextLine().toUpperCase().equals("")) {
+
+                this.broadcast("PREPARE");
+                this.checkVotes();
+
+            } else {
+
+                Printer.print("", "");
+                Printer.print("=============== COORDINATOR CRASHES =================\n", "red");
+
+            }
 
         }
+
     }
 
     private void checkVotes() throws IOException {

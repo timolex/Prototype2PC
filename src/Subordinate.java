@@ -109,7 +109,7 @@ public class Subordinate {
 
             if(this.recoveryProcessStarted) {
 
-                Printer.print("Subordinate-log reads: \"" + this.loggedVote + "\"\n", "white");
+                Printer.print("Subordinate-log reads: \"" + this.loggedVote + "\"", "white");
 
                 this.sendVote();
 
