@@ -169,7 +169,7 @@ public class Subordinate {
     private void phaseTwo() throws IOException {
 
         Printer.print("\n=============== START OF PHASE 2 ===============", "green");
-        Printer.print("Waiting for the coordinator's decision message...", "white");
+        Printer.print("Waiting for the coordinator's decision message...\n", "white");
 
         String decisionMsg = "";
         String loggedVote = this.SubordinateLogger.readLogBottom().split(" ")[0];
@@ -286,7 +286,7 @@ public class Subordinate {
 
     private boolean recoveryProcess() throws IOException {
 
-        Printer.print("\n=============== START OF RECOVERY PROCESS ===============", "orange");
+        Printer.print("\n=============== START OF RECOVERY PROCESS ===============\n", "orange");
 
         int reattempts = 0;
         int maxReattempts = 3;
@@ -295,17 +295,19 @@ public class Subordinate {
 
             try {
 
-                Printer.print("\nReconnecting to coordinator...", "white");
+                Printer.print("Reconnecting to coordinator...\n", "white");
 
                 this.coordinatorSocket = new Socket(Coordinator.SERVER_SOCKET_HOST, Coordinator.SERVER_SOCKET_PORT);
                 this.coordinatorSocket.setSoTimeout(0);
                 this.reader = new BufferedReader(new InputStreamReader(this.coordinatorSocket.getInputStream(), StandardCharsets.UTF_8));
                 this.writer = new OutputStreamWriter(this.coordinatorSocket.getOutputStream(), StandardCharsets.UTF_8);
+
+                Printer.print("Successfully reconnected to coordinator!\n", "white");
                 return true;
 
             } catch (ConnectException ce) {
 
-                Printer.print("\nUnable to reconnect to coordinator!", "orange");
+                Printer.print("Unable to reconnect to coordinator!\n", "orange");
 
                 long startTime = System.currentTimeMillis();
 
@@ -371,7 +373,7 @@ public class Subordinate {
 
         Printer.print("=============== SUBORDINATE RESURRECTS =================\n", "red");
         Printer.print("Coordinator-log reads: \"" + loggedDecision + "\"", "white");
-        Printer.print("Re-entering phase 2...\n", "green");
+        Printer.print("Re-entering phase 2...", "green");
 
         this.phaseTwo();
     }

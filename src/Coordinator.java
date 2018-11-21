@@ -26,7 +26,8 @@ public class Coordinator {
     private Logger socketLogger;
     private int maxSubordinates;
     private String loggedDecision;
-    private boolean recoveryProcessStarted;
+    private boolean isRecoveryProcessStarted;
+    private boolean isCoordinatorResurrecting = false;
 
 
     private Coordinator(int maxSubordinates) throws IOException {
@@ -40,7 +41,7 @@ public class Coordinator {
 
         this.maxSubordinates = maxSubordinates;
         this.loggedDecision = "";
-        this.recoveryProcessStarted = false;
+        this.isRecoveryProcessStarted = false;
 
     }
 
@@ -149,9 +150,11 @@ public class Coordinator {
             if(this.coordinatorLogger.readLogBottom().split(" ")[0].equals("COMMIT") ||
                     this.coordinatorLogger.readLogBottom().split(" ")[0].equals("ABORT")) {
 
-                Printer.print("=============== COORDINATOR RESURRECTS =================\n", "red");
+                Printer.print("=============== COORDINATOR RESURRECTS =================", "red");
 
                 Printer.print("\nWaiting for " + maxSubordinates + " subordinates to re-connect...\n", "white");
+
+                this.isCoordinatorResurrecting = true;
 
                 this.acceptSubordinates();
 
@@ -182,6 +185,8 @@ public class Coordinator {
     }
 
     private void phaseOne() throws IOException {
+
+        if(this.isCoordinatorResurrecting) Printer.print("\nRe-entering phase 1...\n", "blue");
 
         Printer.print("=============== START OF PHASE 1 ===============", "blue");
 
@@ -237,7 +242,7 @@ public class Coordinator {
         if (!illegalAnswer) {
 
             if (phaseOneSubordinateFailure)
-                System.out.println("Phase 1 decision: ABORT (one or more subordinates did" +
+                System.out.println("\nPhase 1 decision: ABORT (one or more subordinates did" +
                         " not vote)");
 
             if (decision) System.out.println("Phase 1 decision: COMMIT (all subordinates answered w/ 'YES' VOTES)");
@@ -367,7 +372,7 @@ public class Coordinator {
 
             Printer.print("\nSubordinate crash(es) detected!\n", "red");
 
-            if (!this.recoveryProcessStarted) System.out.println("Handing transaction over to recovery process...");
+            if (!this.isRecoveryProcessStarted) System.out.println("Handing transaction over to recovery process...");
 
             this.recoveryProcess(crashedSubordinateIndices);
 
@@ -380,7 +385,7 @@ public class Coordinator {
             this.coordinatorLogger.log("END", false, true, true);
             this.socketLogger.emptyLog();
 
-            if (this.recoveryProcessStarted)
+            if (this.isRecoveryProcessStarted)
                 Printer.print("=============== END OF RECOVERY PROCESS =================\n", "orange");
 
             Printer.print("=============== END OF PHASE 2 =================\n", "green");
@@ -391,10 +396,10 @@ public class Coordinator {
 
     private void recoveryProcess(List<Integer> crashedSubordinateIndices) throws IOException {
 
-        if (!this.recoveryProcessStarted)
+        if (!this.isRecoveryProcessStarted)
             Printer.print("\n=============== START OF RECOVERY PROCESS ===============", "orange");
 
-        this.recoveryProcessStarted = true;
+        this.isRecoveryProcessStarted = true;
 
         //Is this necessary?
         /*TODO: Time out at reAccept-method, if not all crashed subordinates reconnected. -> Return these, which did not
@@ -417,7 +422,7 @@ public class Coordinator {
                 case "COMMIT":
                 case "ABORT":
 
-                    if (!decisionMsgPrinted) Printer.print("Message sent to crashed subordinate(s): " + loggedDecision, "white");
+                    if (!decisionMsgPrinted) Printer.print("\nMessage sent to previously crashed subordinate(s): " + loggedDecision, "white");
                     decisionMsgPrinted = true;
 
                     break;
@@ -463,6 +468,12 @@ public class Coordinator {
         // Solution to that: Send the subordinate index to coordinator during resurrection (make this
         // method threaded. -> Is this overkill?
 
+        this.serverSocket.close();
+
+        this.serverSocket = new ServerSocket(SERVER_SOCKET_PORT);
+
+        Printer.print("\nWaiting for " + maxSubordinates + " subordinates to re-connect...\n", "white");
+
         int numberOfReconnectedSubordinates = 0;
 
         while (numberOfReconnectedSubordinates < crashedSubordinateIndices.size()) {
@@ -470,6 +481,9 @@ public class Coordinator {
             int nextSocketToReplaceIndex = crashedSubordinateIndices.get(numberOfReconnectedSubordinates);
 
             Socket socket = this.serverSocket.accept();
+            ++numberOfReconnectedSubordinates;
+
+            System.out.println("Added socket for subordinate " + "S" + numberOfReconnectedSubordinates + ".");
 
             socket.setSoTimeout(TIMEOUT_MILLIS);
 
@@ -477,7 +491,6 @@ public class Coordinator {
             this.readers.set(nextSocketToReplaceIndex, new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8)));
             this.writers.set(nextSocketToReplaceIndex, new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8));
 
-            ++numberOfReconnectedSubordinates;
 
         }
 
