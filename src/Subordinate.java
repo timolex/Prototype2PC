@@ -251,8 +251,6 @@ public class Subordinate {
 
             if(reEnterPhaseOne) {
 
-                //TODO: Build an alternative phaseOne()-method here, which automatically sends the loggedDecision
-                //(maybe include the log-check directly into phaseOne)
                 this.phaseOne();
 
             } else {
