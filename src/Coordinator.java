@@ -152,7 +152,7 @@ public class Coordinator {
 
                 Printer.print("=============== COORDINATOR RESURRECTS =================", "red");
 
-                Printer.print("\nWaiting for " + maxSubordinates + " subordinates to re-connect...\n", "white");
+                Printer.print("\nWaiting for " + maxSubordinates + " subordinates to reconnect...\n", "white");
 
                 this.isCoordinatorResurrecting = true;
 
@@ -472,7 +472,7 @@ public class Coordinator {
 
         this.serverSocket = new ServerSocket(SERVER_SOCKET_PORT);
 
-        Printer.print("\nWaiting for " + maxSubordinates + " subordinates to re-connect...\n", "white");
+        Printer.print("\nWaiting for crashed subordinates to reconnect...\n", "white");
 
         int numberOfReconnectedSubordinates = 0;
 

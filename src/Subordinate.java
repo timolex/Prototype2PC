@@ -176,7 +176,7 @@ public class Subordinate {
         boolean reconnectSuccess = true;
         boolean reEnterPhaseOne = false;
 
-        if(!(loggedVote.equals("PREPARED") || loggedVote.equals("ABORT"))) {
+        if(!(loggedVote.equals("PREPARED") || loggedVote.equals("ABORT") || loggedVote.equals("COMMIT"))) {
 
             throw new IOException("Illegal logged vote read: "+ loggedVote);
 
@@ -372,7 +372,7 @@ public class Subordinate {
     private void resurrect(String loggedDecision) throws IOException {
 
         Printer.print("=============== SUBORDINATE RESURRECTS =================\n", "red");
-        Printer.print("Coordinator-log reads: \"" + loggedDecision + "\"", "white");
+        Printer.print("Subordinate-log reads: \"" + loggedDecision + "\"", "white");
         Printer.print("Re-entering phase 2...", "green");
 
         this.phaseTwo();
