@@ -1,0 +1,4 @@
+#!/bin/bash
+cp Coord ../out/production/Prototype2PC/
+cp Subord* ../out/production/Prototype2PC/
+cp DeleteLogs ../out/production/Prototype2PC/

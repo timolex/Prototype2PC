@@ -1,0 +1,4 @@
+#!/bin/bash
+rm /tmp/CoordinatorLog.txt
+rm /tmp/FailedSubordinates.txt
+rm /tmp/Subordinate*
