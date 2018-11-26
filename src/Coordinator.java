@@ -269,7 +269,8 @@ public class Coordinator {
 
         }
 
-        if(socketsToRemove.size() > 0) this.removeSockets(socketsToRemove);
+        if (!socketsToRemove.isEmpty())
+            this.removeSockets(socketsToRemove);
 
         if (!illegalAnswer) {
 
@@ -293,7 +294,7 @@ public class Coordinator {
 
             }
 
-            if(this.sockets.size() == 0) {
+            if (this.sockets.isEmpty()) {
 
                 this.coordinatorLog.log("END", false, true, true);
                 this.failedSubordinatesLog.emptyLog();
@@ -303,7 +304,8 @@ public class Coordinator {
 
             Printer.print("=============== END OF PHASE 1 =================\n", "blue");
 
-            if (this.sockets.size() > 0) this.phaseTwo(decision);
+            if (!this.sockets.isEmpty())
+                this.phaseTwo(decision);
 
         } else {
 
@@ -401,7 +403,7 @@ public class Coordinator {
 
         }
 
-        if (crashedSubordinateIndices.size() > 0 && !invalidAcknowledgement) {
+        if (!crashedSubordinateIndices.isEmpty() && !invalidAcknowledgement) {
 
             Printer.print("\nSubordinate crash(es) detected!\n", "red");
 
@@ -486,11 +488,13 @@ public class Coordinator {
             }
         }
 
-        if(unreachableSubordinatesIndices.size() > 0) this.recoveryProcess(unreachableSubordinatesIndices);
+        if (!unreachableSubordinatesIndices.isEmpty())
+            this.recoveryProcess(unreachableSubordinatesIndices);
 
         Printer.print("", "white");
 
-        if(reachableSubordinatesIndices.size() > 0) this.checkAcknowledgements(reachableSubordinatesIndices);
+        if (!reachableSubordinatesIndices.isEmpty())
+            this.checkAcknowledgements(reachableSubordinatesIndices);
 
     }
 
