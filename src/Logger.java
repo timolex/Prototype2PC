@@ -42,16 +42,27 @@ public class Logger {
 
     }
 
+    public void log(String msg) throws IOException {
+        log(msg, false, true, true);
+    }
+
+    public void log(String msg, boolean forceWrite) throws IOException {
+        log(msg, forceWrite, true, true);
+    }
+
+    public void log(String msg, boolean forceWrite, boolean appendDate) throws IOException {
+        log(msg, forceWrite, appendDate, true);
+    }
+
     public void log(String msg, boolean forceWrite, boolean appendDate, boolean verbose) throws IOException {
-        String newLogEntry;
+        String newLogEntry = msg;
 
         if(appendDate) {
-            String timeStamp  = dateFormat.format(new Date());
-            newLogEntry = msg + " " + timeStamp + "\n";
-        } else {
-            newLogEntry = msg + "\n";
+            String timeStamp = dateFormat.format(new Date());
+            newLogEntry += " " + timeStamp;
         }
 
+        newLogEntry += "\n";
 
         this.bw.write(newLogEntry);
         this.bw.flush();

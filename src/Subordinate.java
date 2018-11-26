@@ -142,7 +142,7 @@ public class Subordinate {
                         inputHandler.getUserInput().toUpperCase().equals("Y") &&
                         ((System.currentTimeMillis() - startTime) < Coordinator.TIMEOUT_MILLIS))  {
 
-                    this.SubordinateLog.log("PREPARED", true, true, true);
+                    this.SubordinateLog.log("PREPARED", true);
                     this.send("Y");
                     Printer.print("=============== END OF PHASE 1 =================\n", "blue");
                     this.phaseTwo();
@@ -151,7 +151,7 @@ public class Subordinate {
                         inputHandler.getUserInput().toUpperCase().equals("N") &&
                         ((System.currentTimeMillis() - startTime) < Coordinator.TIMEOUT_MILLIS)) {
 
-                    this.SubordinateLog.log("ABORT", true, true, true);
+                    this.SubordinateLog.log("ABORT", true);
                     this.send("N");
                     Printer.print("=============== END OF PHASE 1 =================\n", "blue");
                     this.phaseTwo();
@@ -238,11 +238,11 @@ public class Subordinate {
 
             if(!this.SubordinateLog.readLogBottom().split(" ")[0].equals("ABORT")){
 
-                this.SubordinateLog.log("ABORT", true, true, true);
+                this.SubordinateLog.log("ABORT", true);
 
             }
 
-            this.SubordinateLog.log("END", false, true, true);
+            this.SubordinateLog.log("END");
 
             Printer.print("=============== END OF RECOVERY PROCESS =================", "orange");
             Printer.print("=============== UNILATERAL ABORT =================\n", "red");
@@ -263,7 +263,7 @@ public class Subordinate {
                         if (!this.SubordinateLog.readLogBottom().split(" ")[0].equals("ABORT") &&
                                 !this.SubordinateLog.readLogBottom().split(" ")[0].equals("COMMIT")) {
 
-                            this.SubordinateLog.log(decisionMsg, true, true, true);
+                            this.SubordinateLog.log(decisionMsg, true);
 
                         }
 
@@ -373,7 +373,7 @@ public class Subordinate {
                 (timeDiff < Coordinator.TIMEOUT_MILLIS)) {
 
             this.send("ACK");
-            this.SubordinateLog.log("END", false, true, true);
+            this.SubordinateLog.log("END");
             Printer.print("=============== END OF PHASE 2 =================\n", "green");
 
 
