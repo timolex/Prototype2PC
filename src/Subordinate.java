@@ -67,7 +67,7 @@ public class Subordinate {
 
         System.out.println("\nMy coordinator (C) is @ port " + this.coordinatorSocket.getPort() + "\n\n");
 
-        String loggedDecision = this.SubordinateLog.readLogBottom().split(" ")[0];
+        String loggedDecision = this.SubordinateLog.getLatestMsg();
 
         if(loggedDecision.equals("ABORT") || loggedDecision.equals("PREPARED") || loggedDecision.equals("COMMIT")) {
 
@@ -97,7 +97,7 @@ public class Subordinate {
 
         } catch (NullPointerException ste) {
 
-            Printer.print("C: [No \"PREPARE\"-message received from coordinator]", "white]");
+            Printer.print("C: [No \"PREPARE\"-message received from coordinator]");
             Printer.print("\n=============== SUBORDINATE CRASHES =================\n", "red");
 
         }
@@ -109,7 +109,7 @@ public class Subordinate {
 
             if(this.recoveryProcessStarted) {
 
-                Printer.print("Subordinate-log reads: \"" + this.loggedVote + "\"", "white");
+                Printer.print("Subordinate-log reads: \"" + this.loggedVote + "\"");
 
                 this.sendVote();
 
@@ -142,7 +142,7 @@ public class Subordinate {
                         inputHandler.getUserInput().toUpperCase().equals("Y") &&
                         ((System.currentTimeMillis() - startTime) < Coordinator.TIMEOUT_MILLIS))  {
 
-                    this.SubordinateLog.log("PREPARED", true, true, true);
+                    this.SubordinateLog.log("PREPARED", true);
                     this.send("Y");
                     Printer.print("=============== END OF PHASE 1 =================\n", "blue");
                     this.phaseTwo();
@@ -151,7 +151,7 @@ public class Subordinate {
                         inputHandler.getUserInput().toUpperCase().equals("N") &&
                         ((System.currentTimeMillis() - startTime) < Coordinator.TIMEOUT_MILLIS)) {
 
-                    this.SubordinateLog.log("ABORT", true, true, true);
+                    this.SubordinateLog.log("ABORT", true);
                     this.send("N");
                     Printer.print("=============== END OF PHASE 1 =================\n", "blue");
                     this.phaseTwo();
@@ -187,10 +187,10 @@ public class Subordinate {
     private void phaseTwo() throws IOException {
 
         Printer.print("\n=============== START OF PHASE 2 ===============", "green");
-        Printer.print("Waiting for the coordinator's decision message...\n", "white");
+        Printer.print("Waiting for the coordinator's decision message...\n");
 
         String decisionMsg = "";
-        this.loggedVote = this.SubordinateLog.readLogBottom().split(" ")[0];
+        this.loggedVote = this.SubordinateLog.getLatestMsg();
         boolean reconnectSuccess = true;
         boolean reEnterPhaseOne = false;
 
@@ -236,13 +236,13 @@ public class Subordinate {
 
             Printer.print("\nCoordinator is considered crashed permanently!", "red");
 
-            if(!this.SubordinateLog.readLogBottom().split(" ")[0].equals("ABORT")){
+            if (!this.SubordinateLog.isLatestMsg("ABORT")) {
 
-                this.SubordinateLog.log("ABORT", true, true, true);
+                this.SubordinateLog.log("ABORT", true);
 
             }
 
-            this.SubordinateLog.log("END", false, true, true);
+            this.SubordinateLog.log("END");
 
             Printer.print("=============== END OF RECOVERY PROCESS =================", "orange");
             Printer.print("=============== UNILATERAL ABORT =================\n", "red");
@@ -260,10 +260,10 @@ public class Subordinate {
                     case "COMMIT":
                     case "ABORT":
 
-                        if (!this.SubordinateLog.readLogBottom().split(" ")[0].equals("ABORT") &&
-                                !this.SubordinateLog.readLogBottom().split(" ")[0].equals("COMMIT")) {
+                        if (!this.SubordinateLog.isLatestMsg("ABORT") &&
+                                !this.SubordinateLog.isLatestMsg("COMMIT")) {
 
-                            this.SubordinateLog.log(decisionMsg, true, true, true);
+                            this.SubordinateLog.log(decisionMsg, true);
 
                         }
 
@@ -315,14 +315,14 @@ public class Subordinate {
 
             try {
 
-                Printer.print("Reconnecting to coordinator...\n", "white");
+                Printer.print("Reconnecting to coordinator...\n");
 
                 this.coordinatorSocket = new Socket(Coordinator.SERVER_SOCKET_HOST, Coordinator.SERVER_SOCKET_PORT);
                 this.coordinatorSocket.setSoTimeout(0);
                 this.reader = new BufferedReader(new InputStreamReader(this.coordinatorSocket.getInputStream(), StandardCharsets.UTF_8));
                 this.writer = new OutputStreamWriter(this.coordinatorSocket.getOutputStream(), StandardCharsets.UTF_8);
 
-                Printer.print("Successfully reconnected to coordinator!\n", "white");
+                Printer.print("Successfully reconnected to coordinator!\n");
                 return true;
 
             } catch (ConnectException ce) {
@@ -373,7 +373,7 @@ public class Subordinate {
                 (timeDiff < Coordinator.TIMEOUT_MILLIS)) {
 
             this.send("ACK");
-            this.SubordinateLog.log("END", false, true, true);
+            this.SubordinateLog.log("END");
             Printer.print("=============== END OF PHASE 2 =================\n", "green");
 
 
@@ -392,7 +392,7 @@ public class Subordinate {
     private void resurrect(String loggedDecision) throws IOException {
 
         Printer.print("=============== SUBORDINATE RESURRECTS =================\n", "red");
-        Printer.print("Subordinate-log reads: \"" + loggedDecision + "\"", "white");
+        Printer.print("Subordinate-log reads: \"" + loggedDecision + "\"");
         Printer.print("Re-entering phase 2...", "green");
 
         this.phaseTwo();

@@ -143,10 +143,8 @@ public class Coordinator {
 
         try {
 
-            if(this.coordinatorLog.readLogBottom().split(" ")[0].equals("COMMIT") ||
-                    this.coordinatorLog.readLogBottom().split(" ")[0].equals("ABORT")) {
-
-
+            if (this.coordinatorLog.isLatestMsg("COMMIT") ||
+                    this.coordinatorLog.isLatestMsg("ABORT")) {
 
                 Printer.print("\n=============== COORDINATOR RESURRECTS =================", "red");
 
@@ -154,9 +152,9 @@ public class Coordinator {
 
                 int numberOfPreviouslyCrashedSubordinates;
 
-                if(!this.failedSubordinatesLog.readLogBottom().isEmpty()) {
+                if (!this.failedSubordinatesLog.isEmpty()) {
 
-                    numberOfPreviouslyCrashedSubordinates = Integer.parseInt(this.failedSubordinatesLog.readLogBottom());
+                    numberOfPreviouslyCrashedSubordinates = Integer.parseInt(this.failedSubordinatesLog.readBottom());
 
                 } else {
 
@@ -171,10 +169,9 @@ public class Coordinator {
 
                 }
 
-                int temp = this.maxSubordinates;
-                this.maxSubordinates = temp - numberOfPreviouslyCrashedSubordinates;
+                this.maxSubordinates -= numberOfPreviouslyCrashedSubordinates;
 
-                Printer.print("\nWaiting for " + maxSubordinates + " subordinate(s) to reconnect...\n", "white");
+                Printer.print("\nWaiting for " + maxSubordinates + " subordinate(s) to reconnect...\n");
 
                 this.acceptSubordinates();
 
@@ -182,7 +179,7 @@ public class Coordinator {
 
             } else {
 
-                Printer.print("\nWaiting for " + maxSubordinates + " subordinate(s) to connect...\n", "white");
+                Printer.print("\nWaiting for " + maxSubordinates + " subordinate(s) to connect...\n");
 
                 this.acceptSubordinates();
 
@@ -228,8 +225,7 @@ public class Coordinator {
 
             } else {
 
-                Printer.print("", "");
-                Printer.print("=============== COORDINATOR CRASHES =================\n", "red");
+                Printer.print("\n=============== COORDINATOR CRASHES =================\n", "red");
 
             }
 
@@ -269,7 +265,8 @@ public class Coordinator {
 
         }
 
-        if(socketsToRemove.size() > 0) this.removeSockets(socketsToRemove);
+        if (!socketsToRemove.isEmpty())
+            this.removeSockets(socketsToRemove);
 
         if (!illegalAnswer) {
 
@@ -285,17 +282,17 @@ public class Coordinator {
 
             if (decision) {
 
-                this.coordinatorLog.log("COMMIT", true, true, true);
+                this.coordinatorLog.log("COMMIT", true);
 
             } else {
 
-                this.coordinatorLog.log("ABORT", true, true, true);
+                this.coordinatorLog.log("ABORT", true);
 
             }
 
-            if(this.sockets.size() == 0) {
+            if (this.sockets.isEmpty()) {
 
-                this.coordinatorLog.log("END", false, true, true);
+                this.coordinatorLog.log("END");
                 this.failedSubordinatesLog.emptyLog();
 
             }
@@ -303,7 +300,8 @@ public class Coordinator {
 
             Printer.print("=============== END OF PHASE 1 =================\n", "blue");
 
-            if (this.sockets.size() > 0) this.phaseTwo(decision);
+            if (!this.sockets.isEmpty())
+                this.phaseTwo(decision);
 
         } else {
 
@@ -341,7 +339,7 @@ public class Coordinator {
                 inputHandler.getUserInput().toUpperCase().equals("") &&
                 (timeDiff < Coordinator.TIMEOUT_MILLIS)) {
 
-            Printer.print("", "white");
+            Printer.print("");
 
             this.broadcast(decisionMessage);
 
@@ -401,7 +399,7 @@ public class Coordinator {
 
         }
 
-        if (crashedSubordinateIndices.size() > 0 && !invalidAcknowledgement) {
+        if (!crashedSubordinateIndices.isEmpty() && !invalidAcknowledgement) {
 
             Printer.print("\nSubordinate crash(es) detected!\n", "red");
 
@@ -415,7 +413,7 @@ public class Coordinator {
 
         } else {
 
-            this.coordinatorLog.log("END", false, true, true);
+            this.coordinatorLog.log("END");
 
             if (this.isRecoveryProcessStarted)
                 Printer.print("=============== END OF RECOVERY PROCESS =================\n", "orange");
@@ -441,7 +439,7 @@ public class Coordinator {
          */
         this.reAcceptCrashedSubordinates(crashedSubordinateIndices);
 
-        if (this.loggedDecision.isEmpty()) this.loggedDecision = coordinatorLog.readLogBottom().split(" ")[0];
+        if (this.loggedDecision.isEmpty()) this.loggedDecision = coordinatorLog.getLatestMsg();
 
         boolean decisionMsgPrinted = false;
         List<Integer> unreachableSubordinatesIndices = new ArrayList<>();
@@ -455,14 +453,14 @@ public class Coordinator {
                 case "COMMIT":
                 case "ABORT":
 
-                    if (!decisionMsgPrinted) Printer.print("\nMessage sent to previously crashed subordinate(s): " + loggedDecision, "white");
+                    if (!decisionMsgPrinted) Printer.print("\nMessage sent to previously crashed subordinate(s): " + loggedDecision);
                     decisionMsgPrinted = true;
 
                     break;
 
                 case "":
 
-                    if (!decisionMsgPrinted) Printer.print("Message sent to crashed subordinate(s): ABORT", "white");
+                    if (!decisionMsgPrinted) Printer.print("Message sent to crashed subordinate(s): ABORT");
                     decisionMsgPrinted = true;
 
                     break;
@@ -486,11 +484,13 @@ public class Coordinator {
             }
         }
 
-        if(unreachableSubordinatesIndices.size() > 0) this.recoveryProcess(unreachableSubordinatesIndices);
+        if (!unreachableSubordinatesIndices.isEmpty())
+            this.recoveryProcess(unreachableSubordinatesIndices);
 
-        Printer.print("", "white");
+        Printer.print("");
 
-        if(reachableSubordinatesIndices.size() > 0) this.checkAcknowledgements(reachableSubordinatesIndices);
+        if (!reachableSubordinatesIndices.isEmpty())
+            this.checkAcknowledgements(reachableSubordinatesIndices);
 
     }
 
@@ -505,7 +505,7 @@ public class Coordinator {
 
         this.serverSocket = new ServerSocket(SERVER_SOCKET_PORT);
 
-        Printer.print("\nWaiting for crashed subordinates to reconnect...\n", "white");
+        Printer.print("\nWaiting for crashed subordinates to reconnect...\n");
 
         int numberOfReconnectedSubordinates = 0;
 
