@@ -174,7 +174,7 @@ public class Coordinator {
                 int temp = this.maxSubordinates;
                 this.maxSubordinates = temp - numberOfPreviouslyCrashedSubordinates;
 
-                Printer.print("\nWaiting for " + maxSubordinates + " subordinate(s) to reconnect...\n", "white");
+                Printer.print("\nWaiting for " + maxSubordinates + " subordinate(s) to reconnect...\n");
 
                 this.acceptSubordinates();
 
@@ -182,7 +182,7 @@ public class Coordinator {
 
             } else {
 
-                Printer.print("\nWaiting for " + maxSubordinates + " subordinate(s) to connect...\n", "white");
+                Printer.print("\nWaiting for " + maxSubordinates + " subordinate(s) to connect...\n");
 
                 this.acceptSubordinates();
 
@@ -228,8 +228,7 @@ public class Coordinator {
 
             } else {
 
-                Printer.print("", "");
-                Printer.print("=============== COORDINATOR CRASHES =================\n", "red");
+                Printer.print("\n=============== COORDINATOR CRASHES =================\n", "red");
 
             }
 
@@ -341,7 +340,7 @@ public class Coordinator {
                 inputHandler.getUserInput().toUpperCase().equals("") &&
                 (timeDiff < Coordinator.TIMEOUT_MILLIS)) {
 
-            Printer.print("", "white");
+            Printer.print("");
 
             this.broadcast(decisionMessage);
 
@@ -455,14 +454,14 @@ public class Coordinator {
                 case "COMMIT":
                 case "ABORT":
 
-                    if (!decisionMsgPrinted) Printer.print("\nMessage sent to previously crashed subordinate(s): " + loggedDecision, "white");
+                    if (!decisionMsgPrinted) Printer.print("\nMessage sent to previously crashed subordinate(s): " + loggedDecision);
                     decisionMsgPrinted = true;
 
                     break;
 
                 case "":
 
-                    if (!decisionMsgPrinted) Printer.print("Message sent to crashed subordinate(s): ABORT", "white");
+                    if (!decisionMsgPrinted) Printer.print("Message sent to crashed subordinate(s): ABORT");
                     decisionMsgPrinted = true;
 
                     break;
@@ -488,7 +487,7 @@ public class Coordinator {
 
         if(unreachableSubordinatesIndices.size() > 0) this.recoveryProcess(unreachableSubordinatesIndices);
 
-        Printer.print("", "white");
+        Printer.print("");
 
         if(reachableSubordinatesIndices.size() > 0) this.checkAcknowledgements(reachableSubordinatesIndices);
 
@@ -505,7 +504,7 @@ public class Coordinator {
 
         this.serverSocket = new ServerSocket(SERVER_SOCKET_PORT);
 
-        Printer.print("\nWaiting for crashed subordinates to reconnect...\n", "white");
+        Printer.print("\nWaiting for crashed subordinates to reconnect...\n");
 
         int numberOfReconnectedSubordinates = 0;
 
