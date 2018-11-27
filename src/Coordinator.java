@@ -16,228 +16,128 @@ public class Coordinator {
     public static final int SERVER_SOCKET_PORT = 8080;
     public static final String SERVER_SOCKET_HOST = "localhost";
 
-    private List<Socket> sockets;
-    private ServerSocket serverSocket;
+    private List<Socket> sockets = new ArrayList<>();;
+    private ServerSocket serverSocket = new ServerSocket(SERVER_SOCKET_PORT);;
     private List<OutputStreamWriter> writers = new ArrayList<>();
     private List<BufferedReader> readers = new ArrayList<>();
-    private Scanner scanner;
-    private Logger coordinatorLog;
-    private Logger failedSubordinatesLog;
+    private Scanner scanner = new Scanner(System.in);;
+    private Logger coordinatorLog = new Logger("/tmp/CoordinatorLog.txt", "Coordinator", true);
+    private Logger failedSubordinatesLog = new Logger("/tmp/FailedSubordinates.txt", "", true);
     private int maxSubordinates;
-    private String loggedDecision;
-    private boolean isRecoveryProcessStarted;
+    private String loggedDecision = "";
+    private boolean isRecoveryProcessStarted = false;
     private boolean isCoordinatorResurrecting = false;
 
 
     private Coordinator(int maxSubordinates) throws IOException {
-
-        this.sockets = new ArrayList<>();
-        this.serverSocket = new ServerSocket(SERVER_SOCKET_PORT);
-        this.scanner = new Scanner(System.in);
-        this.coordinatorLog = new Logger("/tmp/CoordinatorLog.txt", "Coordinator", true);
-        this.failedSubordinatesLog = new Logger("/tmp/FailedSubordinates.txt", "", true);
         this.maxSubordinates = maxSubordinates;
-        this.loggedDecision = "";
-        this.isRecoveryProcessStarted = false;
-
     }
 
     private void broadcast(String msg) throws IOException {
-
+        msg = msg + "\n";
         for (OutputStreamWriter writer : this.writers) {
-            writer.write(msg + "\n");
+            writer.write(msg);
             writer.flush();
         }
 
-        switch (msg) {
-
-            case "":
-
-                System.out.println("[No message broadcast to subordinates]\n");
-                break;
-
-            default:
-
-                System.out.println("Message broadcast to subordinates: " + "\"" + msg + "\"\n");
-                break;
-
+        if (msg.equals("")) {
+            System.out.println("[No message broadcast to subordinates]");
+        } else {
+            System.out.println("Message broadcast to subordinates: " + "\"" + msg + "\"");
         }
-
     }
 
     private void send(int index, String msg) throws IOException {
-
+        msg = msg + "\n";
         OutputStreamWriter writer = this.writers.get(index);
-
-        writer.write(msg + "\n");
+        writer.write(msg);
         writer.flush();
-
     }
 
     private List<String> receive(List<BufferedReader> subordinateReaders) {
-
         List<String> msgs = new ArrayList<>();
         List<CoordinatorReceiver> receiverThreads = new ArrayList<>();
         int subordinateIndex = 1;
         int msgCounter = 0;
 
         for (BufferedReader subordinateReader : subordinateReaders) {
-
-            CoordinatorReceiver coordinatorReceiver = new CoordinatorReceiver(subordinateReader, subordinateIndex);
+            CoordinatorReceiver coordinatorReceiver = new CoordinatorReceiver(subordinateReader, ++subordinateIndex);
             coordinatorReceiver.start();
             receiverThreads.add(coordinatorReceiver);
-
-            ++subordinateIndex;
-
         }
 
         while (msgCounter < receiverThreads.size()) {
-
             msgCounter = 0;
-
             for (CoordinatorReceiver thread : receiverThreads) {
-
                 if (thread.isMsgYetReceived()) {
                     ++msgCounter;
                 }
             }
-
         }
 
         for (CoordinatorReceiver receiverThread : receiverThreads) {
-
             msgs.add(receiverThread.getReceivedMessage());
-
         }
 
         return msgs;
-
     }
 
     private void acceptSubordinates() throws IOException {
-
-        int subordinateCounter = 0;
-
+        int subordinateCounter = 1;
         while (subordinateCounter < this.maxSubordinates) {
-
             Socket socket = this.serverSocket.accept();
-
             this.sockets.add(socket);
-
             socket.setSoTimeout(TIMEOUT_MILLIS);
-
             this.writers.add(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8));
             this.readers.add(new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8)));
-
-            subordinateCounter++;
-
-            System.out.println("Added socket for subordinate " + "S" + subordinateCounter + ".");
-
+            System.out.println("Added socket for subordinate " + "S" + ++subordinateCounter + ".");
         }
-
         this.serverSocket.close();
-
     }
 
     private void initiate() throws IOException {
-
         try {
+            Printer.print("\n=============== COORDINATOR RESURRECTS =================", "red");
+            this.isCoordinatorResurrecting = true;
+            int numberOfPreviouslyCrashedSubordinates;
 
-            if(this.coordinatorLog.readLogBottom().split(" ")[0].equals("COMMIT") ||
-                    this.coordinatorLog.readLogBottom().split(" ")[0].equals("ABORT")) {
-
-
-
-                Printer.print("\n=============== COORDINATOR RESURRECTS =================", "red");
-
-                this.isCoordinatorResurrecting = true;
-
-                int numberOfPreviouslyCrashedSubordinates;
-
-                if(!this.failedSubordinatesLog.readLogBottom().isEmpty()) {
-
-                    numberOfPreviouslyCrashedSubordinates = Integer.parseInt(this.failedSubordinatesLog.readLogBottom());
-
-                } else {
-
-                    numberOfPreviouslyCrashedSubordinates = 0;
-
-                }
-
-
-                if (numberOfPreviouslyCrashedSubordinates > maxSubordinates || numberOfPreviouslyCrashedSubordinates < 0) {
-
-                    throw new IOException("Illegal number of phase one subordinate crashes read: " + numberOfPreviouslyCrashedSubordinates);
-
-                }
-
-                int temp = this.maxSubordinates;
-                this.maxSubordinates = temp - numberOfPreviouslyCrashedSubordinates;
-
-                Printer.print("\nWaiting for " + maxSubordinates + " subordinate(s) to reconnect...\n", "white");
-
-                this.acceptSubordinates();
-
-                this.phaseOne();
-
+            if(!this.failedSubordinatesLog.readLogBottom().isEmpty()) {
+                numberOfPreviouslyCrashedSubordinates = Integer.parseInt(this.failedSubordinatesLog.readLogBottom());
             } else {
-
-                Printer.print("\nWaiting for " + maxSubordinates + " subordinate(s) to connect...\n", "white");
-
-                this.acceptSubordinates();
-
-                System.out.println("\n");
-
-                this.phaseOne();
-
+                numberOfPreviouslyCrashedSubordinates = 0;
             }
 
+            if (numberOfPreviouslyCrashedSubordinates > maxSubordinates || numberOfPreviouslyCrashedSubordinates < 0) {
+                throw new IOException("Illegal number of phase one subordinate crashes read: " + numberOfPreviouslyCrashedSubordinates);
+            }
+
+            this.maxSubordinates = this.maxSubordinates - numberOfPreviouslyCrashedSubordinates;
+            Printer.print("\nWaiting for " + maxSubordinates + " subordinate(s) to reconnect...\n", "white");
+            this.acceptSubordinates();
+            this.phaseOne();
+
         } finally {
-
             this.serverSocket.close();
-
             for (Socket socket : sockets) {
                 socket.close();
             }
-
         }
 
     }
 
     private void phaseOne() throws IOException {
-
         if(this.isCoordinatorResurrecting) {
-
             Printer.print("\nRe-entering phase 1...\n", "blue");
-
-            Printer.print("=============== START OF PHASE 1 ===============", "blue");
-
-            this.broadcast("PREPARE");
-            this.checkVotes();
-
-        } else {
-
-            Printer.print("=============== START OF PHASE 1 ===============", "blue");
-
-            System.out.print("Please press enter to broadcast \"PREPARE\" to the subordinates: \n");
-
-            if (scanner.nextLine().toUpperCase().equals("")) {
-
-                this.broadcast("PREPARE");
-                this.checkVotes();
-
-            } else {
-
-                Printer.print("", "");
-                Printer.print("=============== COORDINATOR CRASHES =================\n", "red");
-
-            }
-
         }
+        Printer.print("=============== START OF PHASE 1 ===============", "blue");
+        this.broadcast("PREPARE");
+        boolean decision = this.checkVotes();
+        Printer.print("=============== END OF PHASE 1 =================\n", "blue");
+        if (this.sockets.size() > 0) this.phaseTwo(decision);
 
     }
 
-    private void checkVotes() throws IOException {
+    private boolean checkVotes() throws IOException {
 
         boolean decision = true;
         boolean phaseOneSubordinateFailure = false;
@@ -253,63 +153,41 @@ public class Coordinator {
             if (msg.equals("N")) decision = false;
 
             if (msg.equals("")) {
-
-                socketsToRemove.add(i);
-
+                socketsToRemove.add(++i);
                 decision = false;
                 phaseOneSubordinateFailure = true;
 
             } else if (!msg.equals("Y") && !msg.equals("N") && !msg.equals("")) {
-
                 illegalAnswer = true;
-
             }
-
-            i++;
-
         }
 
         if(socketsToRemove.size() > 0) this.removeSockets(socketsToRemove);
 
         if (!illegalAnswer) {
-
-            if (phaseOneSubordinateFailure)
-                System.out.println("\nPhase 1 decision: ABORT (one or more subordinates did" +
-                        " not vote)");
-
-            if (decision) System.out.println("Phase 1 decision: COMMIT (all subordinates answered w/ 'YES' VOTES)");
-
-            if (!decision && !phaseOneSubordinateFailure)
-                System.out.println("Phase 1 decision: ABORT (one or more " +
-                        "subordinates answered w/ 'NO' VOTES)");
-
             if (decision) {
-
+                System.out.println("Phase 1 decision: COMMIT (all subordinates answered w/ 'YES' VOTES)");
                 this.coordinatorLog.log("COMMIT", true, true, true);
 
-            } else {
-
+            } else if(phaseOneSubordinateFailure) {
+                System.out.println("\nPhase 1 decision: ABORT (one or more subordinates did" +
+                        " not vote)");
                 this.coordinatorLog.log("ABORT", true, true, true);
 
+            } else {
+                System.out.println("Phase 1 decision: ABORT (one or more " +
+                        "subordinates answered w/ 'NO' VOTES)");
             }
 
             if(this.sockets.size() == 0) {
-
                 this.coordinatorLog.log("END", false, true, true);
                 this.failedSubordinatesLog.emptyLog();
-
             }
 
-
-            Printer.print("=============== END OF PHASE 1 =================\n", "blue");
-
-            if (this.sockets.size() > 0) this.phaseTwo(decision);
-
         } else {
-
             throw new IOException("Illegal vote received from a subordinate");
-
         }
+        return decision;
 
     }
 
@@ -329,12 +207,9 @@ public class Coordinator {
         inputHandler.start();
 
         while(!userInputPresent && (timeDiff < (Coordinator.TIMEOUT_MILLIS/2))) {
-
             userInputPresent = inputHandler.isInputYetReceived();
             timeDiff = System.currentTimeMillis() - startTime;
-
             System.out.print("");
-
         }
 
         if (userInputPresent &&
@@ -342,28 +217,19 @@ public class Coordinator {
                 (timeDiff < Coordinator.TIMEOUT_MILLIS)) {
 
             Printer.print("", "white");
-
             this.broadcast(decisionMessage);
-
             List<Integer> allSubordinates = new ArrayList<>();
-
             for (int i = 0; i < this.sockets.size(); i++) allSubordinates.add(i);
-
             this.checkAcknowledgements(allSubordinates);
 
         } else {
-
             for (Socket socket : this.sockets) {
-
                 socket.close();
-
             }
 
             Printer.print("\n=============== COORDINATOR CRASHES =================\n", "red");
-
             // Terminate the program, even if System.in still blocks in InputHandler
             System.exit(0);
-
         }
 
     }
@@ -374,9 +240,7 @@ public class Coordinator {
         List<BufferedReader> subordinateReaders = new ArrayList<>();
 
         for (int subordinateIndex : subordinatesToBeChecked) {
-
             subordinateReaders.add(this.readers.get(subordinateIndex));
-
         }
 
         acknowledgements = this.receive(subordinateReaders);
@@ -386,45 +250,27 @@ public class Coordinator {
         List<Integer> crashedSubordinateIndices = new ArrayList<>();
 
         for (String ack : acknowledgements) {
-
             if (ack.equals("")) {
-
-                crashedSubordinateIndices.add(subordinatesToBeChecked.get(count));
-
-            } else if (!ack.equals("ACK") && !ack.equals("")) {
-
+                crashedSubordinateIndices.add(subordinatesToBeChecked.get(++count));
+            } else if (!ack.equals("ACK")) {
                 invalidAcknowledgement = true;
-
             }
-
-            count++;
-
         }
 
         if (crashedSubordinateIndices.size() > 0 && !invalidAcknowledgement) {
-
             Printer.print("\nSubordinate crash(es) detected!\n", "red");
-
             if (!this.isRecoveryProcessStarted) System.out.println("Handing transaction over to recovery process...");
-
             this.recoveryProcess(crashedSubordinateIndices);
 
         } else if (invalidAcknowledgement) {
-
             throw new IOException("Illegal acknowledgement received from a subordinate");
-
         } else {
-
             this.coordinatorLog.log("END", false, true, true);
-
             if (this.isRecoveryProcessStarted)
                 Printer.print("=============== END OF RECOVERY PROCESS =================\n", "orange");
-
             this.failedSubordinatesLog.emptyLog();
             Printer.print("=============== END OF PHASE 2 =================\n", "green");
-
         }
-
     }
 
     private void recoveryProcess(List<Integer> crashedSubordinateIndices) throws IOException {
@@ -451,46 +297,33 @@ public class Coordinator {
         for (Integer index : crashedSubordinateIndices) {
 
             switch (loggedDecision) {
-
                 case "COMMIT":
                 case "ABORT":
-
                     if (!decisionMsgPrinted) Printer.print("\nMessage sent to previously crashed subordinate(s): " + loggedDecision, "white");
                     decisionMsgPrinted = true;
-
                     break;
-
                 case "":
-
                     if (!decisionMsgPrinted) Printer.print("Message sent to crashed subordinate(s): ABORT", "white");
                     decisionMsgPrinted = true;
-
                     break;
-
                 default:
-
                     throw new IOException("Illegal log entry: " + loggedDecision);
-
             }
 
             try {
-
                 this.send(index, loggedDecision);
                 reachableSubordinatesIndices.add(index);
-
             } catch (IOException e) {
-
                 unreachableSubordinatesIndices.add(index);
                 Printer.print("Unable to reach S" + (index+1) + " waiting for it to reconnect...", "orange");
-
             }
         }
 
-        if(unreachableSubordinatesIndices.size() > 0) this.recoveryProcess(unreachableSubordinatesIndices);
-
+        if(unreachableSubordinatesIndices.size() > 0) {
+            this.recoveryProcess(unreachableSubordinatesIndices);
+            this.checkAcknowledgements(reachableSubordinatesIndices);
+        }
         Printer.print("", "white");
-
-        if(reachableSubordinatesIndices.size() > 0) this.checkAcknowledgements(reachableSubordinatesIndices);
 
     }
 
@@ -502,31 +335,20 @@ public class Coordinator {
         // method threaded. -> Is this overkill?
 
         this.serverSocket.close();
-
         this.serverSocket = new ServerSocket(SERVER_SOCKET_PORT);
 
         Printer.print("\nWaiting for crashed subordinates to reconnect...\n", "white");
-
         int numberOfReconnectedSubordinates = 0;
 
         while (numberOfReconnectedSubordinates < crashedSubordinateIndices.size()) {
-
-            int nextSocketToReplaceIndex = crashedSubordinateIndices.get(numberOfReconnectedSubordinates);
-
+            int nextSocketToReplaceIndex = crashedSubordinateIndices.get(++numberOfReconnectedSubordinates);
             Socket socket = this.serverSocket.accept();
-            ++numberOfReconnectedSubordinates;
-
             System.out.println("Added socket for subordinate " + "S" + numberOfReconnectedSubordinates + ".");
-
             socket.setSoTimeout(TIMEOUT_MILLIS);
-
             this.sockets.set(nextSocketToReplaceIndex, socket);
             this.readers.set(nextSocketToReplaceIndex, new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8)));
             this.writers.set(nextSocketToReplaceIndex, new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8));
-
-
         }
-
     }
 
     private void removeSockets(List<Integer> socketsToRemove) throws IOException {
@@ -538,59 +360,38 @@ public class Coordinator {
         List<BufferedReader> newReaders = new ArrayList<>();
 
         for (int count = 0; count < this.sockets.size(); count++) {
-
             boolean found = false;
-
             for (int i : socketsToRemove) {
-
                 if (count == i) found = true;
-
             }
 
             if (found) {
-
                 this.sockets.get(count).close();
-
             } else {
-
                 newSockets.add(this.sockets.get(count));
                 newWriters.add(this.writers.get(count));
                 newReaders.add(this.readers.get(count));
-
             }
-
         }
 
         this.sockets = newSockets;
         this.writers = newWriters;
         this.readers = newReaders;
-
         this.failedSubordinatesLog.log(String.valueOf(socketsToRemove.size()), false, false, false);
 
     }
 
     private static void printHelp() {
-
         System.out.println("USAGE\n=====\n arguments:\n  - Coordinator -S [NO_OF_SUBORDINATES]");
-
     }
 
     public static void main(String[] args) throws IOException {
-
         if ((args.length == 2) && (args[0].equals("-S")) && (Integer.parseInt(args[1]) > 0)) {
-
             int maxSubordinates = Integer.parseInt(args[1]);
-
-
             Coordinator coordinator = new Coordinator(maxSubordinates);
             coordinator.initiate();
-
-
         } else {
-
             printHelp();
-
         }
-
     }
 }
