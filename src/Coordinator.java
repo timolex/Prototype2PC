@@ -40,7 +40,7 @@ public class Coordinator {
             writer.flush();
         }
 
-        if (msg.equals("")) {
+        if ("".equals(msg)) {
             System.out.println("[No message broadcast to subordinates]");
         } else {
             System.out.println("Message broadcast to subordinates: " + "\"" + msg + "\"");
@@ -151,7 +151,7 @@ public class Coordinator {
 
             System.out.print("Please press enter to broadcast \"PREPARE\" to the subordinates: \n");
 
-            if (scanner.nextLine().toUpperCase().equals("")) {
+            if ("".equals(scanner.nextLine())) {
                 this.broadcast("PREPARE");
                 this.checkVotes();
             } else {
@@ -179,14 +179,14 @@ public class Coordinator {
         int i = 0;
 
         for (String msg : votes) {
-            if (msg.equals("N"))
+            if ("N".equals(msg))
                 decision = false;
 
-            if (msg.equals("")) {
+            if ("".equals(msg)) {
                 socketsToRemove.add(i++);
                 decision = false;
                 phaseOneSubordinateFailure = true;
-            } else if (!msg.equals("Y") && !msg.equals("N") && !msg.equals("")) {
+            } else if (!"Y".equals(msg) && !"N".equals(msg) && !"".equals(msg)) {
                 illegalAnswer = true;
             }
         }
@@ -239,9 +239,8 @@ public class Coordinator {
             System.out.print("");
         }
 
-        if (userInputPresent &&
-                inputHandler.getUserInput().toUpperCase().equals("") &&
-                (timeDiff < Coordinator.TIMEOUT_MILLIS)) {
+        if (userInputPresent && "".equals(inputHandler.getUserInput())
+                && (timeDiff < Coordinator.TIMEOUT_MILLIS)) {
             Printer.print("");
             this.broadcast(decisionMessage);
             List<Integer> allSubordinates = new ArrayList<>();
@@ -276,9 +275,9 @@ public class Coordinator {
         List<Integer> crashedSubordinateIndices = new ArrayList<>();
 
         for (String ack : acknowledgements) {
-            if (ack.equals("")) {
+            if ("".equals(ack)) {
                 crashedSubordinateIndices.add(subordinatesToBeChecked.get(count++));
-            } else if (!ack.equals("ACK")) {
+            } else if (!"ACK".equals(ack)) {
                 invalidAcknowledgement = true;
             }
         }
@@ -420,7 +419,7 @@ public class Coordinator {
     }
 
     public static void main(String[] args) throws IOException {
-        if ((args.length == 2) && (args[0].equals("-S")) && (Integer.parseInt(args[1]) > 0)) {
+        if ((args.length == 2) && ("-S".equals(args[0])) && (Integer.parseInt(args[1]) > 0)) {
             int maxSubordinates = Integer.parseInt(args[1]);
             Coordinator coordinator = new Coordinator(maxSubordinates);
             coordinator.initiate();
