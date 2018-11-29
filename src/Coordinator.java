@@ -9,7 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
 
-public class Coordinator {
+public final class Coordinator {
 
     //TODO: Think about this value; How long should we wait for Subordinate's answers?
     public static final int TIMEOUT_MILLIS = 20000;
@@ -164,8 +164,9 @@ public class Coordinator {
         boolean decision = this.checkVotes();
         Printer.print("=============== END OF PHASE 1 =================\n", "blue");
 
-        if (this.sockets.size() > 0)
+        if (this.sockets.size() > 0) {
             this.phaseTwo(decision);
+        }
     }
 
     private boolean checkVotes() throws IOException {
@@ -179,8 +180,9 @@ public class Coordinator {
         int i = 0;
 
         for (String msg : votes) {
-            if ("N".equals(msg))
+            if ("N".equals(msg)) {
                 decision = false;
+            }
 
             if ("".equals(msg)) {
                 socketsToRemove.add(i++);
@@ -191,8 +193,9 @@ public class Coordinator {
             }
         }
 
-        if (!socketsToRemove.isEmpty())
+        if (!socketsToRemove.isEmpty()) {
             this.removeSockets(socketsToRemove);
+        }
 
         if (!illegalAnswer) {
             if (decision) {
@@ -210,8 +213,9 @@ public class Coordinator {
 
             Printer.print("=============== END OF PHASE 1 =================\n", "blue");
 
-            if (!this.sockets.isEmpty())
+            if (!this.sockets.isEmpty()) {
                 this.phaseTwo(decision);
+            }
         } else {
             throw new IOException("Illegal vote received from a subordinate");
         }
@@ -233,14 +237,14 @@ public class Coordinator {
         InputHandler inputHandler = new InputHandler(new Scanner(System.in));
         inputHandler.start();
 
-        while (!userInputPresent && (timeDiff < (Coordinator.TIMEOUT_MILLIS/2))) {
+        while (!userInputPresent && timeDiff < Coordinator.TIMEOUT_MILLIS/2) {
             userInputPresent = inputHandler.isInputYetReceived();
             timeDiff = System.currentTimeMillis() - startTime;
             System.out.print("");
         }
 
         if (userInputPresent && "".equals(inputHandler.getUserInput())
-                && (timeDiff < Coordinator.TIMEOUT_MILLIS)) {
+                && timeDiff < Coordinator.TIMEOUT_MILLIS) {
             Printer.print("");
             this.broadcast(decisionMessage);
             List<Integer> allSubordinates = new ArrayList<>();
@@ -285,8 +289,9 @@ public class Coordinator {
         if (!crashedSubordinateIndices.isEmpty() && !invalidAcknowledgement) {
             Printer.print("\nSubordinate crash(es) detected!\n", "red");
 
-            if (!this.isRecoveryProcessStarted)
+            if (!this.isRecoveryProcessStarted) {
                 System.out.println("Handing transaction over to recovery process...");
+            }
 
             this.recoveryProcess(crashedSubordinateIndices);
         } else if (invalidAcknowledgement) {
@@ -294,8 +299,9 @@ public class Coordinator {
         } else {
             this.coordinatorLog.log("END");
 
-            if (this.isRecoveryProcessStarted)
+            if (this.isRecoveryProcessStarted) {
                 Printer.print("=============== END OF RECOVERY PROCESS =================\n", "orange");
+            }
 
             this.failedSubordinatesLog.emptyLog();
             Printer.print("=============== END OF PHASE 2 =================\n", "green");
@@ -303,8 +309,9 @@ public class Coordinator {
     }
 
     private void recoveryProcess(List<Integer> crashedSubordinateIndices) throws IOException {
-        if (!this.isRecoveryProcessStarted)
+        if (!this.isRecoveryProcessStarted) {
             Printer.print("\n=============== START OF RECOVERY PROCESS ===============", "orange");
+        }
 
         this.isRecoveryProcessStarted = true;
 
@@ -315,8 +322,9 @@ public class Coordinator {
          */
         this.reAcceptCrashedSubordinates(crashedSubordinateIndices);
 
-        if (this.loggedDecision.isEmpty())
+        if (this.loggedDecision.isEmpty()) {
             this.loggedDecision = coordinatorLog.getLatestMsg();
+        }
 
         boolean decisionMsgPrinted = false;
         List<Integer> unreachableSubordinatesIndices = new ArrayList<>();
@@ -328,14 +336,16 @@ public class Coordinator {
                 case "COMMIT":
                     /* fallthrough */
                 case "ABORT":
-                    if (!decisionMsgPrinted)
+                    if (!decisionMsgPrinted) {
                         Printer.print("\nMessage sent to previously crashed subordinate(s): " + loggedDecision);
+                    }
 
                     decisionMsgPrinted = true;
                     break;
                 case "":
-                    if (!decisionMsgPrinted)
+                    if (!decisionMsgPrinted) {
                         Printer.print("Message sent to crashed subordinate(s): ABORT");
+                    }
 
                     decisionMsgPrinted = true;
                     break;
@@ -352,13 +362,15 @@ public class Coordinator {
             }
         }
 
-        if (!unreachableSubordinatesIndices.isEmpty())
+        if (!unreachableSubordinatesIndices.isEmpty()) {
             this.recoveryProcess(unreachableSubordinatesIndices);
+        }
 
         Printer.print("");
 
-        if (!reachableSubordinatesIndices.isEmpty())
+        if (!reachableSubordinatesIndices.isEmpty()) {
             this.checkAcknowledgements(reachableSubordinatesIndices);
+        }
     }
 
     private void reAcceptCrashedSubordinates(List<Integer> crashedSubordinateIndices) throws IOException {
@@ -395,8 +407,9 @@ public class Coordinator {
         for (int count = 0; count < this.sockets.size(); count++) {
             boolean found = false;
             for (int i : socketsToRemove) {
-                if (count == i)
+                if (count == i) {
                     found = true;
+                }
             }
 
             if (found) {
@@ -419,7 +432,7 @@ public class Coordinator {
     }
 
     public static void main(String[] args) throws IOException {
-        if ((args.length == 2) && ("-S".equals(args[0])) && (Integer.parseInt(args[1]) > 0)) {
+        if (args.length == 2 && "-S".equals(args[0]) && Integer.parseInt(args[1]) > 0) {
             int maxSubordinates = Integer.parseInt(args[1]);
             Coordinator coordinator = new Coordinator(maxSubordinates);
             coordinator.initiate();
