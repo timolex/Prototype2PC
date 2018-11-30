@@ -12,7 +12,8 @@ import java.util.Scanner;
 public final class Coordinator {
 
     //TODO: Think about this value; How long should we wait for Subordinate's answers?
-    public static final int TIMEOUT_MILLIS = 20000;
+    public static final int TIMEOUT_MILLIS = 10000;
+    public static final int MILLIS_PER_SECOND = 1000;
     public static final int SERVER_SOCKET_PORT = 8080;
     public static final String SERVER_SOCKET_HOST = "localhost";
 
@@ -231,7 +232,7 @@ public final class Coordinator {
         boolean userInputPresent = false;
         String decisionMessage = decision ? "COMMIT" : "ABORT";
 
-        System.out.print("Please press enter within " + Coordinator.TIMEOUT_MILLIS /2000 +
+        System.out.print("Please press enter within " + Coordinator.TIMEOUT_MILLIS / MILLIS_PER_SECOND +
                 " seconds to broadcast \"" + decisionMessage + "\" to the subordinates: ");
 
         InputHandler inputHandler = new InputHandler(new Scanner(System.in));
