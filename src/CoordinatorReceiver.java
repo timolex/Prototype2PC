@@ -35,22 +35,22 @@ public class CoordinatorReceiver implements Runnable {
         switch (this.receivedMessage) {
 
             case ("Y"): {
-                Printer.print("S" + this.subordinateIndex + ": " + "\"YES\"", "white");
+                Printer.print("S" + this.subordinateIndex + ": " + "\"YES\"");
                 break;
             }
 
             case ("N"): {
-                Printer.print("S" + this.subordinateIndex + ": " + "\"NO\"", "white");
+                Printer.print("S" + this.subordinateIndex + ": " + "\"NO\"");
                 break;
             }
 
             case(""): {
-                Printer.print("S" + this.subordinateIndex + ": " + "[No message received]", "white");
+                Printer.print("S" + this.subordinateIndex + ": " + "[No message received]");
                 break;
             }
 
             default: {
-                Printer.print("S" + this.subordinateIndex + ": " + "\"" + this.receivedMessage + "\"", "white");
+                Printer.print("S" + this.subordinateIndex + ": " + "\"" + this.receivedMessage + "\"");
                 break;
             }
 
