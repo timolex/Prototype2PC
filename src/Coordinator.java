@@ -213,7 +213,7 @@ public class Coordinator {
             Printer.print("=============== START OF PHASE 1 ===============", "blue");
 
             this.broadcast("PREPARE");
-            this.checkVotes();
+            this.phaseTwo(this.coordinatorLog.readLogBottom().split(" ")[0].equals("COMMIT"));
 
         } else {
 

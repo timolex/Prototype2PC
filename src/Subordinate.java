@@ -111,7 +111,7 @@ public class Subordinate {
 
                 Printer.print("Subordinate-log reads: \"" + this.loggedVote + "\"", "white");
 
-                this.sendVote();
+                //this.sendVote();
 
                 Printer.print("=============== END OF PHASE 1 =================\n", "blue");
 
