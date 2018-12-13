@@ -213,6 +213,8 @@ public class Coordinator {
             Printer.print("=============== START OF PHASE 1 ===============", "blue");
 
             this.broadcast("PREPARE");
+            // ignoring the Subordinate's votes
+            this.receive(this.readers);
             this.phaseTwo(this.coordinatorLog.readLogBottom().split(" ")[0].equals("COMMIT"));
 
         } else {
