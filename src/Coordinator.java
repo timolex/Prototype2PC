@@ -28,6 +28,8 @@ public class Coordinator {
     private boolean isRecoveryProcessStarted;
     private boolean isCoordinatorResurrecting = false;
 
+    private long startTime;
+    private long stopTime;
 
     private Coordinator(int maxSubordinates) throws IOException {
 
@@ -206,6 +208,8 @@ public class Coordinator {
 
     private void phaseOne() throws IOException {
 
+        this.startTime = System.currentTimeMillis();
+
         if(this.isCoordinatorResurrecting) {
 
             Printer.print("\nRe-entering phase 1...\n", "blue");
@@ -382,6 +386,10 @@ public class Coordinator {
 
             this.coordinatorLog.log("END", false, true, true);
 
+            this.stopTime = System.currentTimeMillis();
+
+            this.printExecTime();
+
             if (this.isRecoveryProcessStarted)
                 Printer.print("=============== END OF RECOVERY PROCESS =================\n", "orange");
 
@@ -540,12 +548,18 @@ public class Coordinator {
 
     }
 
+    private void printExecTime() {
+
+        double deltaT = this.stopTime - this.startTime;
+        Printer.print("\nTotal time of execution: " + String.valueOf(deltaT), "blue");
+
+    }
+
     public static void main(String[] args) throws IOException {
 
         if ((args.length == 2) && (args[0].equals("-S")) && (Integer.parseInt(args[1]) > 0)) {
 
             int maxSubordinates = Integer.parseInt(args[1]);
-
 
             Coordinator coordinator = new Coordinator(maxSubordinates);
             coordinator.initiate();
