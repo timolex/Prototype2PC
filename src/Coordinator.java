@@ -12,7 +12,7 @@ import java.util.Scanner;
 public class Coordinator {
 
     //TODO: Think about this value; How long should we wait for Subordinate's answers?
-    public static final int TIMEOUT_MILLIS = 10000;
+    public static final int TIMEOUT_MILLIS = 20000;
     public static final int SERVER_SOCKET_PORT = 8080;
     public static final String SERVER_SOCKET_HOST = "localhost";
 
@@ -221,17 +221,20 @@ public class Coordinator {
 
             System.out.print("Please press enter to broadcast \"PREPARE\" to the subordinates: \n");
 
-            if (scanner.nextLine().toUpperCase().equals("")) {
+            //if (scanner.nextLine().toUpperCase().equals("")) {
+
+
 
                 this.broadcast("PREPARE");
                 this.checkVotes();
 
-            } else {
 
-                Printer.print("", "");
-                Printer.print("=============== COORDINATOR CRASHES =================\n", "red");
+            //} else {
 
-            }
+               // Printer.print("", "");
+            //Printer.print("=============== COORDINATOR CRASHES =================\n", "red");
+
+            //}
 
         }
 
@@ -317,54 +320,16 @@ public class Coordinator {
 
         Printer.print("\n=============== START OF PHASE 2 ===============", "green");
 
-        long startTime = System.currentTimeMillis();
-        long timeDiff = 0;
-        boolean userInputPresent = false;
+
         String decisionMessage = decision ? "COMMIT" : "ABORT";
 
-        System.out.print("Please press enter within " + Coordinator.TIMEOUT_MILLIS /2000 +
-                " seconds to broadcast \"" + decisionMessage + "\" to the subordinates: ");
+        this.broadcast(decisionMessage);
 
-        InputHandler inputHandler = new InputHandler(new Scanner(System.in));
-        inputHandler.start();
+        List<Integer> allSubordinates = new ArrayList<>();
 
-        while(!userInputPresent && (timeDiff < (Coordinator.TIMEOUT_MILLIS/2))) {
+        for (int i = 0; i < this.sockets.size(); i++) allSubordinates.add(i);
 
-            userInputPresent = inputHandler.isInputYetReceived();
-            timeDiff = System.currentTimeMillis() - startTime;
-
-            System.out.print("");
-
-        }
-
-        if (userInputPresent &&
-                inputHandler.getUserInput().toUpperCase().equals("") &&
-                (timeDiff < Coordinator.TIMEOUT_MILLIS)) {
-
-            Printer.print("", "white");
-
-            this.broadcast(decisionMessage);
-
-            List<Integer> allSubordinates = new ArrayList<>();
-
-            for (int i = 0; i < this.sockets.size(); i++) allSubordinates.add(i);
-
-            this.checkAcknowledgements(allSubordinates);
-
-        } else {
-
-            for (Socket socket : this.sockets) {
-
-                socket.close();
-
-            }
-
-            Printer.print("\n=============== COORDINATOR CRASHES =================\n", "red");
-
-            // Terminate the program, even if System.in still blocks in InputHandler
-            System.exit(0);
-
-        }
+        this.checkAcknowledgements(allSubordinates);
 
     }
 

@@ -119,66 +119,12 @@ public class Subordinate {
 
             } else {
 
-                System.out.print("Please enter the vote ('y' for 'YES'/ 'n' for 'NO') to be sent back to the coordinator within "
-                        + Coordinator.TIMEOUT_MILLIS /2000 + " seconds. ");
-                System.out.print("If you wish to let this subordinate fail at this stage, please enter 'f': ");
-                long timeDiff = 0;
-                boolean userInputPresent = false;
-
-                InputHandler inputHandler = new InputHandler(new Scanner(System.in));
-                inputHandler.start();
-                long startTime = System.currentTimeMillis();
-
-                while(!userInputPresent && (timeDiff < (Coordinator.TIMEOUT_MILLIS/2))) {
-
-                    userInputPresent = inputHandler.isInputYetReceived();
-                    timeDiff = System.currentTimeMillis() - startTime;
-
-                    System.out.print("");
-
-                }
-
-                if (userInputPresent &&
-                        inputHandler.getUserInput().toUpperCase().equals("Y") &&
-                        ((System.currentTimeMillis() - startTime) < Coordinator.TIMEOUT_MILLIS))  {
-
-                    this.SubordinateLog.log("PREPARED", true, true, true);
-                    this.send("Y");
-                    Printer.print("=============== END OF PHASE 1 =================\n", "blue");
-                    this.phaseTwo();
-
-                } else if (userInputPresent &&
-                        inputHandler.getUserInput().toUpperCase().equals("N") &&
-                        ((System.currentTimeMillis() - startTime) < Coordinator.TIMEOUT_MILLIS)) {
-
-                    this.SubordinateLog.log("ABORT", true, true, true);
-                    this.send("N");
-                    Printer.print("=============== END OF PHASE 1 =================\n", "blue");
-                    this.phaseTwo();
-
-
-                } else if (userInputPresent &&
-                        inputHandler.getUserInput().toUpperCase().equals("F") &&
-                        ((System.currentTimeMillis() - startTime) < Coordinator.TIMEOUT_MILLIS)){
-
-                    Printer.print("=============== SUBORDINATE CRASHES =================\n", "red");
-
-                    // Terminate the program, even if System.in still blocks in InputHandler
-                    System.exit(0);
-
-                } else {
-
-                    Printer.print("\nNo valid input detected within " + Coordinator.TIMEOUT_MILLIS / 2000 + " seconds!", "red");
-                    Printer.print("=============== SUBORDINATE CRASHES =================\n", "red");
-
-                    // Terminate the program, even if System.in still blocks in InputHandler
-                    System.exit(0);
-
-                }
+                this.SubordinateLog.log("ABORT", true, true, true);
+                this.send("N");
+                Printer.print("=============== END OF PHASE 1 =================\n", "blue");
+                this.phaseTwo();
 
             }
-
-
 
         }
 
@@ -349,42 +295,9 @@ public class Subordinate {
 
     private void sendAck() throws IOException {
 
-        System.out.print("Please press enter within " + Coordinator.TIMEOUT_MILLIS / 2000 + " seconds, for" +
-                " letting this subordinate acknowledge the coordinator's decision: ");
-
-        InputHandler inputHandler = new InputHandler(new Scanner(System.in));
-        inputHandler.start();
-        boolean inputPresent = false;
-
-        long startTime = System.currentTimeMillis();
-        long timeDiff = 0;
-
-        while (!inputPresent && (timeDiff < Coordinator.TIMEOUT_MILLIS)) {
-
-            inputPresent = inputHandler.isInputYetReceived();
-            timeDiff = System.currentTimeMillis() - startTime;
-
-            System.out.print("");
-
-        }
-
-        if (inputPresent &&
-                inputHandler.getUserInput().toUpperCase().equals("") &&
-                (timeDiff < Coordinator.TIMEOUT_MILLIS)) {
-
-            this.send("ACK");
-            this.SubordinateLog.log("END", false, true, true);
-            Printer.print("=============== END OF PHASE 2 =================\n", "green");
-
-
-        } else {
-
-            Printer.print("\nNot acknowledged within " + Coordinator.TIMEOUT_MILLIS / 2000 + " seconds!", "red");
-            Printer.print("=============== SUBORDINATE CRASHES =================\n", "red");
-
-            // Terminate the program, even if System.in still blocks in InputHandler
-            System.exit(0);
-        }
+        this.send("ACK");
+        this.SubordinateLog.log("END", false, true, true);
+        Printer.print("=============== END OF PHASE 2 =================\n", "green");
 
     }
 
