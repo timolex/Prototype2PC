@@ -329,11 +329,21 @@ public class Coordinator {
 
         this.broadcast(decisionMessage);
 
-        List<Integer> allSubordinates = new ArrayList<>();
+        this.coordinatorLog.log("END", false, true, true);
+
+        this.stopTime = System.currentTimeMillis();
+
+        this.printExecTime();
+
+        Printer.print("=============== END OF PHASE 2 =================\n", "green");
+
+
+
+/*        List<Integer> allSubordinates = new ArrayList<>();
 
         for (int i = 0; i < this.sockets.size(); i++) allSubordinates.add(i);
 
-        this.checkAcknowledgements(allSubordinates);
+        this.checkAcknowledgements(allSubordinates);*/
 
     }
 
@@ -385,10 +395,6 @@ public class Coordinator {
         } else {
 
             this.coordinatorLog.log("END", false, true, true);
-
-            this.stopTime = System.currentTimeMillis();
-
-            this.printExecTime();
 
             if (this.isRecoveryProcessStarted)
                 Printer.print("=============== END OF RECOVERY PROCESS =================\n", "orange");
