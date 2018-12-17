@@ -120,7 +120,7 @@ public class Subordinate {
             } else {
 
                 System.out.print("Please enter the vote ('y' for 'YES'/ 'n' for 'NO') to be sent back to the coordinator within "
-                        + Coordinator.TIMEOUT_MILLIS /2000 + " seconds. ");
+                        + Coordinator.TIMEOUT_MILLIS / 1000 + " seconds. ");
                 System.out.print("If you wish to let this subordinate fail at this stage, please enter 'f': ");
                 long timeDiff = 0;
                 boolean userInputPresent = false;
@@ -168,7 +168,7 @@ public class Subordinate {
 
                 } else {
 
-                    Printer.print("\nNo valid input detected within " + Coordinator.TIMEOUT_MILLIS / 2000 + " seconds!", "red");
+                    Printer.print("\nNo valid input detected within " + Coordinator.TIMEOUT_MILLIS / 1000 + " seconds!", "red");
                     Printer.print("=============== SUBORDINATE CRASHES =================\n", "red");
 
                     // Terminate the program, even if System.in still blocks in InputHandler
@@ -349,7 +349,7 @@ public class Subordinate {
 
     private void sendAck() throws IOException {
 
-        System.out.print("Please press enter within " + Coordinator.TIMEOUT_MILLIS / 2000 + " seconds, for" +
+        System.out.print("Please press enter within " + Coordinator.TIMEOUT_MILLIS / 1000 + " seconds, for" +
                 " letting this subordinate acknowledge the coordinator's decision: ");
 
         InputHandler inputHandler = new InputHandler(new Scanner(System.in));
@@ -379,7 +379,7 @@ public class Subordinate {
 
         } else {
 
-            Printer.print("\nNot acknowledged within " + Coordinator.TIMEOUT_MILLIS / 2000 + " seconds!", "red");
+            Printer.print("\nNot acknowledged within " + Coordinator.TIMEOUT_MILLIS / 1000 + " seconds!", "red");
             Printer.print("=============== SUBORDINATE CRASHES =================\n", "red");
 
             // Terminate the program, even if System.in still blocks in InputHandler
