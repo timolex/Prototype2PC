@@ -70,10 +70,28 @@ public class Logger {
 
     }
 
-    public String readLogBottom() {
+    public String readBottom() {
 
         if (this.reverseLog.isEmpty()) return "";
         return this.reverseLog.peek();
+
+    }
+
+    public String getLatestMsg() {
+
+        return this.readBottom().split(" ")[0];
+
+    }
+
+    public boolean isLatestMsg(String msg) {
+
+        return this.getLatestMsg().equals(msg);
+
+    }
+
+    public boolean isEmpty() {
+
+        return this.readBottom().isEmpty();
 
     }
 

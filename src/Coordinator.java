@@ -143,10 +143,8 @@ public class Coordinator {
 
         try {
 
-            if(this.coordinatorLog.readLogBottom().split(" ")[0].equals("COMMIT") ||
-                    this.coordinatorLog.readLogBottom().split(" ")[0].equals("ABORT")) {
-
-
+            if (this.coordinatorLog.isLatestMsg("COMMIT") ||
+                    this.coordinatorLog.isLatestMsg("ABORT")) {
 
                 Printer.print("\n=============== COORDINATOR RESURRECTS =================", "red");
 
@@ -154,9 +152,9 @@ public class Coordinator {
 
                 int numberOfPreviouslyCrashedSubordinates;
 
-                if(!this.failedSubordinatesLog.readLogBottom().isEmpty()) {
+                if (!this.failedSubordinatesLog.isEmpty()) {
 
-                    numberOfPreviouslyCrashedSubordinates = Integer.parseInt(this.failedSubordinatesLog.readLogBottom());
+                    numberOfPreviouslyCrashedSubordinates = Integer.parseInt(this.failedSubordinatesLog.readBottom());
 
                 } else {
 
@@ -171,8 +169,7 @@ public class Coordinator {
 
                 }
 
-                int temp = this.maxSubordinates;
-                this.maxSubordinates = temp - numberOfPreviouslyCrashedSubordinates;
+                this.maxSubordinates -= numberOfPreviouslyCrashedSubordinates;
 
                 Printer.print("\nWaiting for " + maxSubordinates + " subordinate(s) to reconnect...\n", "white");
 
@@ -443,7 +440,7 @@ public class Coordinator {
          */
         this.reAcceptCrashedSubordinates(crashedSubordinateIndices);
 
-        if (this.loggedDecision.isEmpty()) this.loggedDecision = coordinatorLog.readLogBottom().split(" ")[0];
+        if (this.loggedDecision.isEmpty()) this.loggedDecision = coordinatorLog.getLatestMsg();
 
         boolean decisionMsgPrinted = false;
         List<Integer> unreachableSubordinatesIndices = new ArrayList<>();

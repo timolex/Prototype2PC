@@ -67,7 +67,7 @@ public class Subordinate {
 
         System.out.println("\nMy coordinator (C) is @ port " + this.coordinatorSocket.getPort() + "\n\n");
 
-        String loggedDecision = this.SubordinateLog.readLogBottom().split(" ")[0];
+        String loggedDecision = this.SubordinateLog.getLatestMsg();
 
         if(loggedDecision.equals("ABORT") || loggedDecision.equals("PREPARED") || loggedDecision.equals("COMMIT")) {
 
@@ -190,7 +190,7 @@ public class Subordinate {
         Printer.print("Waiting for the coordinator's decision message...\n", "white");
 
         String decisionMsg = "";
-        this.loggedVote = this.SubordinateLog.readLogBottom().split(" ")[0];
+        this.loggedVote = this.SubordinateLog.getLatestMsg();
         boolean reconnectSuccess = true;
         boolean reEnterPhaseOne = false;
 
@@ -236,7 +236,7 @@ public class Subordinate {
 
             Printer.print("\nCoordinator is considered crashed permanently!", "red");
 
-            if(!this.SubordinateLog.readLogBottom().split(" ")[0].equals("ABORT")){
+            if (!this.SubordinateLog.isLatestMsg("ABORT")) {
 
                 this.SubordinateLog.log("ABORT", true, true, true);
 
@@ -260,8 +260,8 @@ public class Subordinate {
                     case "COMMIT":
                     case "ABORT":
 
-                        if (!this.SubordinateLog.readLogBottom().split(" ")[0].equals("ABORT") &&
-                                !this.SubordinateLog.readLogBottom().split(" ")[0].equals("COMMIT")) {
+                        if (!this.SubordinateLog.isLatestMsg("ABORT") &&
+                                !this.SubordinateLog.isLatestMsg("COMMIT")) {
 
                             this.SubordinateLog.log(decisionMsg, true, true, true);
 
