@@ -97,7 +97,7 @@ public class Subordinate {
 
         } catch (NullPointerException ste) {
 
-            Printer.print("C: [No \"PREPARE\"-message received from coordinator]", "white]");
+            Printer.print("C: [No \"PREPARE\"-message received from coordinator]");
             Printer.print("\n=============== SUBORDINATE CRASHES =================\n", "red");
 
         }
@@ -109,7 +109,7 @@ public class Subordinate {
 
             if(this.recoveryProcessStarted) {
 
-                Printer.print("Subordinate-log reads: \"" + this.loggedVote + "\"", "white");
+                Printer.print("Subordinate-log reads: \"" + this.loggedVote + "\"");
 
                 this.sendVote();
 
@@ -187,7 +187,7 @@ public class Subordinate {
     private void phaseTwo() throws IOException {
 
         Printer.print("\n=============== START OF PHASE 2 ===============", "green");
-        Printer.print("Waiting for the coordinator's decision message...\n", "white");
+        Printer.print("Waiting for the coordinator's decision message...\n");
 
         String decisionMsg = "";
         this.loggedVote = this.SubordinateLog.readLogBottom().split(" ")[0];
@@ -315,14 +315,14 @@ public class Subordinate {
 
             try {
 
-                Printer.print("Reconnecting to coordinator...\n", "white");
+                Printer.print("Reconnecting to coordinator...\n");
 
                 this.coordinatorSocket = new Socket(Coordinator.SERVER_SOCKET_HOST, Coordinator.SERVER_SOCKET_PORT);
                 this.coordinatorSocket.setSoTimeout(0);
                 this.reader = new BufferedReader(new InputStreamReader(this.coordinatorSocket.getInputStream(), StandardCharsets.UTF_8));
                 this.writer = new OutputStreamWriter(this.coordinatorSocket.getOutputStream(), StandardCharsets.UTF_8);
 
-                Printer.print("Successfully reconnected to coordinator!\n", "white");
+                Printer.print("Successfully reconnected to coordinator!\n");
                 return true;
 
             } catch (ConnectException ce) {
@@ -392,7 +392,7 @@ public class Subordinate {
     private void resurrect(String loggedDecision) throws IOException {
 
         Printer.print("=============== SUBORDINATE RESURRECTS =================\n", "red");
-        Printer.print("Subordinate-log reads: \"" + loggedDecision + "\"", "white");
+        Printer.print("Subordinate-log reads: \"" + loggedDecision + "\"");
         Printer.print("Re-entering phase 2...", "green");
 
         this.phaseTwo();
