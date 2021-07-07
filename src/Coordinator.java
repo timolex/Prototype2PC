@@ -287,17 +287,17 @@ public class Coordinator {
 
             if (decision) {
 
-                this.coordinatorLog.log("COMMIT", true, true, true);
+                this.coordinatorLog.log("COMMIT", true);
 
             } else {
 
-                this.coordinatorLog.log("ABORT", true, true, true);
+                this.coordinatorLog.log("ABORT", true);
 
             }
 
             if(this.sockets.size() == 0) {
 
-                this.coordinatorLog.log("END", false, true, true);
+                this.coordinatorLog.log("END");
                 this.failedSubordinatesLog.emptyLog();
 
             }
@@ -417,7 +417,7 @@ public class Coordinator {
 
         } else {
 
-            this.coordinatorLog.log("END", false, true, true);
+            this.coordinatorLog.log("END");
 
             if (this.isRecoveryProcessStarted)
                 Printer.print("=============== END OF RECOVERY PROCESS =================\n", "orange");
